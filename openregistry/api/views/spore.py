@@ -65,4 +65,4 @@ def generate_spore_description(services, name, base_url, version, **kwargs):
 @spore.get()
 def get_spore(request):
     services = get_services()
-    return generate_spore_description(services, 'Service name', request.application_url, VERSION)
+    return generate_spore_description(services, 'OpenRegistry', request.application_url, VERSION)

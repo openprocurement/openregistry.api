@@ -9,8 +9,7 @@ from schematics.types import (StringType, FloatType, URLType, IntType,
                               BooleanType, BaseType, EmailType, MD5Type)
 from schematics.transforms import whitelist, blacklist, export_loop, convert
 from schematics.exceptions import ConversionError, ValidationError
-from schematics.types.compound import (ModelType, DictType,
-                                       ListType as BaseListType)
+from schematics.types.compound import ModelType, DictType, ListType
 from schematics.models import Model as SchematicsModel
 from schematics.types.serializable import serializable
 
@@ -53,90 +52,6 @@ class IsoDateTimeType(BaseType):
         return value.isoformat()
 
 
-class ListType(BaseListType):
-
-    def export_loop(self, list_instance, field_converter,
-                    role=None, print_none=False):
-        """Loops over each item in the model and applies either the field
-        transform or the multitype transform.  Essentially functions the same
-        as `transforms.export_loop`.
-        """
-        data = []
-        for value in list_instance:
-            if hasattr(self.field, 'export_loop'):
-                shaped = self.field.export_loop(value, field_converter,
-                                                role=role,
-                                                print_none=print_none)
-                feels_empty = shaped and len(shaped) == 0
-            else:
-                shaped = field_converter(self.field, value)
-                feels_empty = shaped is None
-
-            # Print if we want empty or found a value
-            if feels_empty and self.field.allow_none():
-                data.append(shaped)
-            elif shaped is not None:
-                data.append(shaped)
-            elif print_none:
-                data.append(shaped)
-
-        # Return data if the list contains anything
-        if len(data) > 0:
-            return data
-        elif len(data) == 0 and self.allow_none():
-            return data
-        elif print_none:
-            return data
-
-
-class SifterListType(ListType):
-    def __init__(self, field, min_size=None, max_size=None,
-                 filter_by=None, filter_in_values=[], **kwargs):
-        self.filter_by = filter_by
-        self.filter_in_values = filter_in_values
-        super(SifterListType, self).__init__(field, min_size=min_size,
-                                             max_size=max_size, **kwargs)
-
-    def export_loop(self, list_instance, field_converter,
-                    role=None, print_none=False):
-        """ Use the same functionality as original method but apply
-        additional filters.
-        """
-        data = []
-        for value in list_instance:
-            if hasattr(self.field, 'export_loop'):
-                item_role = role
-                # apply filters
-                if role not in ['plain', None] and self.filter_by and hasattr(value, self.filter_by):
-                    val = getattr(value, self.filter_by)
-                    if val in self.filter_in_values:
-                        item_role = val
-
-                shaped = self.field.export_loop(value, field_converter,
-                                                role=item_role,
-                                                print_none=print_none)
-                feels_empty = shaped and len(shaped) == 0
-            else:
-                shaped = field_converter(self.field, value)
-                feels_empty = shaped is None
-
-            # Print if we want empty or found a value
-            if feels_empty and self.field.allow_none():
-                data.append(shaped)
-            elif shaped is not None:
-                data.append(shaped)
-            elif print_none:
-                data.append(shaped)
-
-        # Return data if the list contains anything
-        if len(data) > 0:
-            return data
-        elif len(data) == 0 and self.allow_none():
-            return data
-        elif print_none:
-            return data
-
-
 class Model(SchematicsModel):
     class Options(object):
         """Export options for Document."""
@@ -148,6 +63,15 @@ class Model(SchematicsModel):
 
     __parent__ = BaseType()
 
+    def __init__(self,*args, **kwargs):
+        super(Model, self).__init__(*args, **kwargs)
+        for i, j in self._data.items():
+            if isinstance(j, list):
+                for x in j:
+                    set_parent(x, self)
+            else:
+                set_parent(j, self)
+
     def __eq__(self, other):
         if isinstance(other, self.__class__):
             for k in self._fields:
@@ -156,27 +80,13 @@ class Model(SchematicsModel):
             return True
         return NotImplemented
 
-    def convert(self, raw_data, **kw):
-        """
-        Converts the raw data into richer Python constructs according to the
-        fields on the model
-        """
-        value = convert(self.__class__, raw_data, **kw)
-        for i, j in value.items():
-            if isinstance(j, list):
-                for x in j:
-                    set_parent(x, self)
-            else:
-                set_parent(j, self)
-        return value
-
     def to_patch(self, role=None):
         """
         Return data as it would be validated. No filtering of output unless
         role is defined.
         """
-        field_converter = lambda field, value: field.to_primitive(value)
-        data = export_loop(self.__class__, self, field_converter, role=role, raise_error_on_role=True, print_none=True)
+        field_converter = lambda field, value, context: field.to_primitive(value, context)
+        data = export_loop(self.__class__, self, field_converter=field_converter, role=role)
         return data
 
     def get_role(self):
@@ -226,7 +136,10 @@ class ItemClassification(Classification):
 
 
 class Unit(Model):
-    """Description of the unit which the good comes in e.g. hours, kilograms. Made up of a unit name, and the value of a single unit."""
+    """
+    Description of the unit which the good comes in e.g. hours, kilograms.
+    Made up of a unit name, and the value of a single unit.
+    """
 
     name = StringType()
     name_en = StringType()
@@ -338,21 +251,6 @@ class Document(Model):
             path = [i for i in urlparse(url).path.split('/') if len(i) == 32 and not set(i).difference(hexdigits)]
             return generate_docservice_url(request, doc_id, False, '{}/{}'.format(path[0], path[-1]))
         return generate_docservice_url(request, doc_id, False)
-
-    def import_data(self, raw_data, **kw):
-        """
-        Converts and imports the raw data into the instance of the model
-        according to the fields in the model.
-        :param raw_data:
-            The data to be imported.
-        """
-        data = self.convert(raw_data, **kw)
-        del_keys = [k for k in data.keys() if data[k] == getattr(self, k)]
-        for k in del_keys:
-            del data[k]
-
-        self._data.update(data)
-        return self
 
 
 class Identifier(Model):
