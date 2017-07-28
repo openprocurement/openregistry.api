@@ -2,7 +2,7 @@
 
 import unittest
 
-from openregistry.api.tests import auth, spore, migration
+from openregistry.api.tests import auth, spore, migration, models
 
 
 def suite():
@@ -10,6 +10,7 @@ def suite():
     suite.addTest(auth.suite())
     suite.addTest(spore.suite())
     suite.addTest(migration.suite())
+    suite.addTest(models.suite())
     return suite
 
 
