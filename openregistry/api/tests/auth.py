@@ -3,11 +3,15 @@ import unittest
 from pyramid import testing
 from openregistry.api.auth import AuthenticationPolicy
 from pyramid.tests.test_authentication import TestBasicAuthAuthenticationPolicy
+import os
+
+
+dir_path = os.path.dirname(os.path.realpath(__file__))
 
 
 class AuthTest(TestBasicAuthAuthenticationPolicy):
     def _makeOne(self, check):
-        return AuthenticationPolicy('openregistry/api/tests/auth.ini', 'SomeRealm')
+        return AuthenticationPolicy(os.path.join(dir_path, 'auth.ini'), 'SomeRealm')
 
     test_authenticated_userid_utf8 = None
     test_authenticated_userid_latin1 = None

@@ -36,6 +36,9 @@ entry_points = {
     ],
     'console_scripts': [
         'bootstrap_api_security = openregistry.api.database:bootstrap_api_security'
+    ],
+    'openregistry.tests': [
+        'api_test_suite = openregistry.api.tests.main:suite'
     ]
 }
 
