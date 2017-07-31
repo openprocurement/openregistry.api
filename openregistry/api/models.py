@@ -81,13 +81,16 @@ class Model(SchematicsModel):
             return True
         return NotImplemented
 
+    def serialize(self, *args, **kwargs):
+        return super(Model, self).serialize(raise_error_on_role=False, *args, **kwargs)
+
     def to_patch(self, role=None, *arg, **kwargs):
         """
         Return data as it would be validated. No filtering of output unless
         role is defined.
         """
         field_converter = lambda field, value, context: field.to_primitive(value, context)
-        data = export_loop(self.__class__, self, field_converter=field_converter, role=role, *arg, **kwargs)
+        data = export_loop(self.__class__, self, field_converter=field_converter, role=role, raise_error_on_role=False, *arg, **kwargs)
         return data
 
     def get_role(self):
