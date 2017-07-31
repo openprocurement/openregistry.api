@@ -33,11 +33,15 @@ DEFAULT_ITEM_CLASSIFICATION = u'CPV'
 
 DOCUMENT_TYPES = []
 
+CPV_CODES = read_json('cpv.json')
+ORA_CODES = [i['code'] for i in read_json('OrganisationRegistrationAgency.json')['data']]
+
 ITEM_CLASSIFICATIONS = {
-    u'CPV': []
+    u'CPV': CPV_CODES,
+    u'CAV-PS': []
 }
 
-IDENTIFIER_CODES = []
+IDENTIFIER_CODES = ORA_CODES
 
 ADDITIONAL_CLASSIFICATIONS_SCHEMES = [u'ДКПП', u'NONE', u'CPVS']
 

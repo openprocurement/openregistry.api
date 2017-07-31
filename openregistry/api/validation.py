@@ -53,7 +53,7 @@ def validate_data(request, model, partial=False, data=None):
             request.errors.status = 403
             data = None
         else:
-            data = method(role)
+            data = method(role, context={"raise_error_on_role": False})
             request.validated['data'] = data
             if not partial:
                 m = model(data)
