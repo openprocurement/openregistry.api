@@ -53,6 +53,7 @@ class IsoDateTimeType(BaseType):
 
 
 class Model(SchematicsModel):
+
     class Options(object):
         """Export options for Document."""
         serialize_when_none = False
@@ -80,13 +81,16 @@ class Model(SchematicsModel):
             return True
         return NotImplemented
 
-    def to_patch(self, role=None):
+    def serialize(self, *args, **kwargs):
+        return super(Model, self).serialize(raise_error_on_role=False, *args, **kwargs)
+
+    def to_patch(self, role=None, *arg, **kwargs):
         """
         Return data as it would be validated. No filtering of output unless
         role is defined.
         """
         field_converter = lambda field, value, context: field.to_primitive(value, context)
-        data = export_loop(self.__class__, self, field_converter=field_converter, role=role)
+        data = export_loop(self.__class__, self, field_converter=field_converter, role=role, raise_error_on_role=False, *arg, **kwargs)
         return data
 
     def get_role(self):
@@ -272,9 +276,8 @@ class Item(Model):
     additionalClassifications = ListType(ModelType(Classification), default=list())
     unit = ModelType(Unit)  # Description of the unit which the good comes in e.g. hours, kilograms
     quantity = IntType()  # The number of units required
-    deliveryDate = ModelType(Period)
-    deliveryAddress = ModelType(Address)
-    deliveryLocation = ModelType(Location)
+    address = ModelType(Address)
+    location = ModelType(Location)
     relatedLot = MD5Type()
 
 

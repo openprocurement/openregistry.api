@@ -2,10 +2,11 @@
 import unittest
 import mock
 from datetime import datetime, timedelta
-from schematics.exceptions import ConversionError, DataError
+from schematics.exceptions import ConversionError, ValidationError, DataError
 
 from openregistry.api.utils import get_now
 
+from openregistry.api.models import blacklist
 from openregistry.api.models import (
     Organization, ContactPoint, Identifier, Address,
     Item, Location, Unit, Value, ItemClassification, Classification,
@@ -155,7 +156,8 @@ class DummyModelsTest(unittest.TestCase):
         self.assertTrue(classification.serialize() == classification.to_patch() == data)
         classification.validate()
 
-    @mock.patch.dict('openregistry.api.constants.ITEM_CLASSIFICATIONS', {'CPV': ('test', )})
+    @mock.patch.dict('openregistry.api.constants.ITEM_CLASSIFICATIONS', {'CPV': ('test', ),
+                                                                         'CAV-PS': ('test2')})
     def test_ItemClassification_model(self):
 
         item_classification = ItemClassification.get_mock_object()
@@ -165,12 +167,200 @@ class DummyModelsTest(unittest.TestCase):
         with self.assertRaises(DataError):
             item_classification.validate()  # {"id": ["Value must be one of ('test',)."]}
         self.assertNotIn('id', item_classification.to_patch().keys())
-        with self.assertRaisesRegexp(KeyError, 'id'):
-            item_classification.serialize()
-            item_classification.validate()
 
-        item_classification.id = 'test'
+        item_classification.import_data({'scheme': 'CPV', 'id': 'test'})
         item_classification.validate()
+
+        item_classification.import_data({'scheme': 'CAV-PS', 'id': 'test2'})
+        item_classification.validate()
+
+    def test_Location_model(self):
+
+        location = Location()
+        self.assertEqual(location.serialize(), {})
+        with self.assertRaises(DataError) as ex:
+            location.validate()
+        self.assertEqual(ex.exception, {'latitude': [u'This field is required.'],
+                                        'longitude': [u'This field is required.']})
+        location.import_data({'latitude': '123.1234567890',
+                              'longitude': '-123.1234567890'})
+        self.assertDictEqual(location.serialize(), {'latitude': '123.1234567890',
+                                                    'longitude': '-123.1234567890'})
+        location.validate()
+
+    def test_Item_model(self):
+
+        data = {
+            "id": u"0",
+            "description": u"футляри до державних нагород",
+            "classification": {
+                "scheme": u"CPV",
+                "id": u"44617100-9",
+                "description": u"Cartons"
+            },
+            "additionalClassifications": [
+                {
+                    "scheme": u"ДКПП",
+                    "id": u"17.21.1",
+                    "description": u"папір і картон гофровані, паперова й картонна тара"
+                }
+            ],
+            "unit": {
+                "name": u"item",
+                "code": u"44617100-9"
+            },
+            "quantity": 5,
+            "address": {
+                "countryName": u"Україна",
+                "postalCode": "79000",
+                "region": u"м. Київ",
+                "locality": u"м. Київ",
+                "streetAddress": u"вул. Банкова 1"
+            }
+        }
+        item = Item(data)
+        item.validate()
+        self.assertTrue(item.serialize() == item.to_patch() == data)
+
+        data['location'] = {'latitude': '123', 'longitude': '567'}
+        item2 = Item(data)
+        item2.validate()
+        self.assertTrue(item2.serialize() == item2.to_patch() == data)
+
+        self.assertNotEqual(item, item2)
+        item2.location = None
+        self.assertEqual(item, item2)
+
+        with mock.patch.dict('openregistry.api.models.Item._options.roles', {'test': blacklist('__parent__', 'address')}):
+            self.assertNotIn('address', item.serialize('test'))
+            self.assertNotEqual(item.serialize('test'), item.serialize())
+            self.assertEqual(item.serialize('test'), item2.serialize('test'))
+
+    def test_Address_model(self):
+
+        data = {
+            "countryName": u"Україна",
+            "postalCode": "79000",
+            "region": u"м. Київ",
+            "locality": u"м. Київ",
+            "streetAddress": u"вул. Банкова 1"
+        }
+
+        address = Address(data)
+        address.validate()
+        self.assertEqual(address.serialize(), data)
+
+        address.countryName = None
+        with self.assertRaises(DataError) as ex:
+            address.validate()
+        self.assertEqual(ex.exception, {"countryName": ["This field is required."]})
+        self.assertEqual(address.serialize(), data)
+
+    def test_Identifier_model(self):
+
+        identifier = Identifier.get_mock_object()
+        with self.assertRaises(DataError) as ex:
+            identifier.validate()
+        self.assertEqual(ex.exception, {"id": ["This field is required."]})
+
+        identifier.id = 'test'
+        identifier.validate()
+
+        with mock.patch.dict('openregistry.api.models.Identifier._options.roles', {'test': blacklist('id')}):
+            self.assertIn('id', identifier.serialize().keys())
+            self.assertNotIn('id', identifier.serialize('test').keys())
+
+    def test_ContactPoint_model(self):
+
+        contact = ContactPoint()
+        self.assertEqual(contact.serialize(), {})
+
+        with self.assertRaises(DataError) as ex:
+            contact.validate()
+        self.assertEqual(ex.exception, {"name": ["This field is required."],
+                                        "email": ["telephone or email should be present"]})
+        data = {"name": u"Державне управління справами",
+                "telephone": u"0440000000"}
+        contact.import_data(data)
+        contact.validate()
+        self.assertEqual(contact.serialize(), data)
+
+        contact.telephone = None
+        with self.assertRaisesRegexp(KeyError, 'email'):
+            contact.validate()
+        self.assertEqual(contact.serialize(), data)
+
+        data['email'] = 'qwe@example.test'
+        contact.email = data['email']
+        contact.validate()
+        self.assertEqual(contact.serialize(), data)
+
+        contact.telephone = None
+        contact.validate()
+        self.assertNotEqual(contact.serialize(), data)
+        data.pop('telephone')
+        self.assertEqual(contact.serialize(), data)
+
+    def test_Organization_model(self):
+
+        data = {
+            "name": u"Державне управління справами",
+            "identifier": {
+                "scheme": u"UA-EDR",
+                "id": u"00037256",
+                "uri": u"http://www.dus.gov.ua/"
+            },
+            "address": {
+                "countryName": u"Україна",
+                "postalCode": u"01220",
+                "region": u"м. Київ",
+                "locality": u"м. Київ",
+                "streetAddress": u"вул. Банкова, 11, корпус 1"
+            },
+            "contactPoint": {
+                "name": u"Державне управління справами",
+                "telephone": u"0440000000"
+            }
+        }
+        organization = Organization(data)
+        organization.validate()
+        self.assertEqual(organization.serialize(), data)
+
+        with mock.patch.dict('openregistry.api.models.Identifier._options.roles', {'view': blacklist('id')}):
+            self.assertNotEqual(organization.serialize('view'),
+                                organization.serialize())
+            self.assertIn('id', organization.serialize()['identifier'].keys())
+            self.assertNotIn('id', organization.serialize('view')['identifier'].keys())
+
+        additional_identifiers = []
+        for _ in xrange(3):
+            idtf = Identifier.get_mock_object()
+            idtf.id = '0' * 6
+            additional_identifiers.append(idtf.serialize())
+        data['additionalIdentifiers'] = additional_identifiers
+
+        organization2 = Organization(data)
+        organization2.validate()
+        self.assertNotEqual(organization, organization2)
+        self.assertEqual(organization2.serialize(), data)
+
+    def test_HashType_model(self):
+        from uuid import uuid4
+
+        hash = HashType()
+
+        for invalid_hash in ['test', ':', 'test:']:
+            with self.assertRaisesRegexp(ValidationError, "Hash type is not supported."):
+                hash.to_native(invalid_hash)
+
+        with self.assertRaisesRegexp(ValidationError, "Hash value is wrong length."):
+            hash.to_native('sha512:')
+
+        with self.assertRaisesRegexp(ConversionError, "Hash value is not hexadecimal."):
+            hash.to_native('md5:{}'.format('-' * 32))
+
+        result = 'md5:{}'.format(uuid4().hex)
+        self.assertEqual(hash.to_native(result), result)
 
 
 def suite():
