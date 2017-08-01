@@ -9,6 +9,7 @@ from Crypto.Cipher import AES
 from cornice.util import json_error
 from cornice.resource import view
 from webob.multidict import NestedMultiDict
+from pkg_resources import iter_entry_points
 from jsonpatch import make_patch, apply_patch as _apply_patch
 
 from openregistry.api.events import ErrorDesctiptorEvent
@@ -17,6 +18,14 @@ from openregistry.api.interfaces import IContentConfigurator
 
 
 json_view = partial(view, renderer='json')
+
+
+def load_plugins(config, group, **kwargs):
+    plugins = kwargs.get('plugins')
+    for entry_point in iter_entry_points(group, kwargs.get('name')):
+        if not plugins or entry_point.name in plugins:
+            plugin = entry_point.load()
+            plugin(config)
 
 
 def get_now():

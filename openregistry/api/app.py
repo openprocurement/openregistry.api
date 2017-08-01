@@ -6,7 +6,6 @@ if 'test' not in __import__('sys').argv[0]: # pragma: no cover
     gevent.monkey.patch_all()
 import os
 from logging import getLogger
-from pkg_resources import iter_entry_points
 from libnacl.sign import Signer, Verifier
 from pyramid.authorization import ACLAuthorizationPolicy as AuthorizationPolicy
 from pyramid.config import Configurator
@@ -15,7 +14,7 @@ from pyramid.settings import asbool
 
 from openregistry.api.auth import AuthenticationPolicy, authenticated_role, check_accreditation
 from openregistry.api.database import set_api_security
-from openregistry.api.utils import forbidden, request_params
+from openregistry.api.utils import forbidden, request_params, load_plugins
 from openregistry.api.constants import ROUTE_PREFIX
 
 LOGGER = getLogger("{}.init".format(__name__))
@@ -41,10 +40,7 @@ def main(global_config, **settings):
 
     # search for plugins
     plugins = settings.get('plugins') and settings['plugins'].split(',')
-    for entry_point in iter_entry_points('openregistry.api.plugins'):
-        if not plugins or entry_point.name in plugins:
-            plugin = entry_point.load()
-            plugin(config)
+    load_plugins(config, group='openregistry.api.plugins', plugins=plugins)
 
     # CouchDB connection
     aserver, server, db = set_api_security(settings)
@@ -66,9 +62,7 @@ def main(global_config, **settings):
 
     # migrate data
     if not os.environ.get('MIGRATION_SKIP'):
-        for entry_point in iter_entry_points('openregistry.api.migrations'):
-            plugin = entry_point.load()
-            plugin(config.registry)
+        load_plugins(config.registry, group='openregistry.api.migrations')
 
     config.registry.server_id = settings.get('id', '')
 
@@ -77,10 +71,7 @@ def main(global_config, **settings):
     for k in subscribers_keys:
         subscribers = settings[k].split(',')
         for subscriber in subscribers:
-            for entry_point in iter_entry_points('openregistry.{}'.format(k), subscriber):
-                if entry_point:
-                    plugin = entry_point.load()
-                    plugin(config)
+            load_plugins(config, group='openregistry.{}'.format(k), name=subscriber)
 
     config.registry.health_threshold = float(settings.get('health_threshold', 512))
     config.registry.health_threshold_func = settings.get('health_threshold_func', 'all')
