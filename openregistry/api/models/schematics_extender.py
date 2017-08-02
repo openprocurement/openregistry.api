@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from datetime import datetime
 from iso8601 import parse_date, ParseError
+from hashlib import algorithms, new as hash_new
 from schematics.exceptions import ConversionError, ValidationError
 
 from schematics.models import Model as SchematicsModel
