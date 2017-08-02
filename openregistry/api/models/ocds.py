@@ -1,104 +1,21 @@
 # -*- coding: utf-8 -*-
-from datetime import datetime
-from iso8601 import parse_date, ParseError
-from hashlib import algorithms, new as hash_new
 from urlparse import urlparse, parse_qs
 from uuid import uuid4
 
 from schematics.types import (StringType, FloatType, URLType, IntType,
                               BooleanType, BaseType, EmailType, MD5Type)
-from schematics.transforms import whitelist, blacklist, export_loop, convert
 from schematics.exceptions import ConversionError, ValidationError
 from schematics.types.compound import ModelType, DictType, ListType
-from schematics.models import Model as SchematicsModel
 from schematics.types.serializable import serializable
 
-
-from couchdb_schematics.document import SchematicsDocument
-
-from openregistry.api.constants import ( DEFAULT_CURRENCY,
+from openregistry.api.constants import (DEFAULT_CURRENCY,
     DEFAULT_ITEM_CLASSIFICATION, ITEM_CLASSIFICATIONS, TZ, DOCUMENT_TYPES,
     IDENTIFIER_CODES
 )
-from openregistry.api.utils import get_now, set_parent
+from openregistry.api.utils import get_now
 
-schematics_default_role = SchematicsDocument.Options.roles['default'] + blacklist("__parent__")
-schematics_embedded_role = SchematicsDocument.Options.roles['embedded'] + blacklist("__parent__")
-
-plain_role = (blacklist('_attachments', 'revisions', 'dateModified') + schematics_embedded_role)
-listing_role = whitelist('dateModified', 'doc_id')
-draft_role = whitelist('status')
-
-
-class IsoDateTimeType(BaseType):
-    MESSAGES = {
-        'parse': u'Could not parse {0}. Should be ISO8601.',
-    }
-
-    def to_native(self, value, context=None):
-        if isinstance(value, datetime):
-            return value
-        try:
-            date = parse_date(value, None)
-            if not date.tzinfo:
-                date = TZ.localize(date)
-            return date
-        except ParseError:
-            raise ConversionError(self.messages['parse'].format(value))
-        except OverflowError as e:
-            raise ConversionError(e.message)
-
-    def to_primitive(self, value, context=None):
-        return value.isoformat()
-
-
-class Model(SchematicsModel):
-
-    class Options(object):
-        """Export options for Document."""
-        serialize_when_none = False
-        roles = {
-            "default": blacklist("__parent__"),
-            "embedded": blacklist("__parent__"),
-        }
-
-    __parent__ = BaseType()
-
-    def __init__(self,*args, **kwargs):
-        super(Model, self).__init__(*args, **kwargs)
-        for i, j in self._data.items():
-            if isinstance(j, list):
-                for x in j:
-                    set_parent(x, self)
-            else:
-                set_parent(j, self)
-
-    def __eq__(self, other):
-        if isinstance(other, self.__class__):
-            for k in self._fields:
-                if k != '__parent__' and self.get(k) != other.get(k):
-                    return False
-            return True
-        return NotImplemented
-
-    def serialize(self, *args, **kwargs):
-        return super(Model, self).serialize(raise_error_on_role=False, *args, **kwargs)
-
-    def to_patch(self, role=None, *arg, **kwargs):
-        """
-        Return data as it would be validated. No filtering of output unless
-        role is defined.
-        """
-        field_converter = lambda field, value, context: field.to_primitive(value, context)
-        data = export_loop(self.__class__, self, field_converter=field_converter, role=role, raise_error_on_role=False, *arg, **kwargs)
-        return data
-
-    def get_role(self):
-        root = self.__parent__
-        while root.__parent__ is not None:
-            root = root.__parent__
-        request = root.request
-        return 'Administrator' if request.authenticated_role == 'Administrator' else 'edit'
+from .schematics_extender import Model, IsoDateTimeType, HashType
+from .roles import document_roles, organization_roles
 
 
 class Value(Model):
@@ -169,44 +86,9 @@ class Location(Model):
     elevation = BaseType()
 
 
-class HashType(StringType):
-
-    MESSAGES = {
-        'hash_invalid': "Hash type is not supported.",
-        'hash_length': "Hash value is wrong length.",
-        'hash_hex': "Hash value is not hexadecimal.",
-    }
-
-    def to_native(self, value, context=None):
-        value = super(HashType, self).to_native(value, context)
-
-        if ':' not in value:
-            raise ValidationError(self.messages['hash_invalid'])
-
-        hash_type, hash_value = value.split(':', 1)
-
-        if hash_type not in algorithms:
-            raise ValidationError(self.messages['hash_invalid'])
-
-        if len(hash_value) != hash_new(hash_type).digest_size * 2:
-            raise ValidationError(self.messages['hash_length'])
-        try:
-            int(hash_value, 16)
-        except ValueError:
-            raise ConversionError(self.messages['hash_hex'])
-        return value
-
-
 class Document(Model):
-    class Options:
-        roles = {
-            'create': blacklist('id', 'datePublished', 'dateModified', 'author', 'download_url'),
-            'edit': blacklist('id', 'url', 'datePublished', 'dateModified', 'author', 'hash', 'download_url'),
-            'embedded': (blacklist('url', 'download_url') + schematics_embedded_role),
-            'default': blacklist("__parent__"),
-            'view': (blacklist('revisions') + schematics_default_role),
-            'revisions': whitelist('url', 'dateModified'),
-        }
+    class Options():
+        roles = document_roles
 
     id = MD5Type(required=True, default=lambda: uuid4().hex)
     hash = HashType()
@@ -297,11 +179,8 @@ class ContactPoint(Model):
 
 class Organization(Model):
     """An organization."""
-    class Options:
-        roles = {
-            'embedded': schematics_embedded_role,
-            'view': schematics_default_role,
-        }
+    class Options():
+        roles = organization_roles
 
     name = StringType(required=True)
     name_en = StringType()
@@ -312,6 +191,7 @@ class Organization(Model):
     contactPoint = ModelType(ContactPoint, required=True)
 
 
+# TODO: move class Revision to another module
 class Revision(Model):
     author = StringType()
     date = IsoDateTimeType(default=get_now)
