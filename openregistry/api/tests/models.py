@@ -6,24 +6,20 @@ from schematics.exceptions import ConversionError, ValidationError, DataError
 
 from openregistry.api.utils import get_now
 
-from openregistry.api.models import blacklist
-from openregistry.api.models import (
+from openregistry.api.models.roles import blacklist
+from openregistry.api.models.schematics_extender import (
+    IsoDateTimeType, HashType)
+from openregistry.api.models.ocds import (
     Organization, ContactPoint, Identifier, Address,
     Item, Location, Unit, Value, ItemClassification, Classification,
-    Period, PeriodEndRequired, IsoDateTimeType,
-    Revision, Document, HashType
+    Period, PeriodEndRequired, Revision, Document
 )
 
 
 now = get_now()
 
 
-class DummyModelsTest(unittest.TestCase):
-    """ Test Case for testing openregistry.api.models'
-            - roles
-            - serialization
-            - validation
-    """
+class SchematicsExtenderTest(unittest.TestCase):
 
     def test_IsoDateTimeType_model(self):
 
@@ -49,6 +45,31 @@ class DummyModelsTest(unittest.TestCase):
             with self.assertRaises(ConversionError):
                 dt.to_native(dt.to_primitive(date))
 
+    def test_HashType_model(self):
+        from uuid import uuid4
+
+        hash = HashType()
+
+        for invalid_hash in ['test', ':', 'test:']:
+            with self.assertRaisesRegexp(ValidationError, "Hash type is not supported."):
+                hash.to_native(invalid_hash)
+
+        with self.assertRaisesRegexp(ValidationError, "Hash value is wrong length."):
+            hash.to_native('sha512:')
+
+        with self.assertRaisesRegexp(ConversionError, "Hash value is not hexadecimal."):
+            hash.to_native('md5:{}'.format('-' * 32))
+
+        result = 'md5:{}'.format(uuid4().hex)
+        self.assertEqual(hash.to_native(result), result)
+
+
+class DummyOCDSModelsTest(unittest.TestCase):
+    """ Test Case for testing openregistry.api.models'
+            - roles
+            - serialization
+            - validation
+    """
     def test_Period_model(self):
 
         period = Period()
@@ -231,7 +252,7 @@ class DummyModelsTest(unittest.TestCase):
         item2.location = None
         self.assertEqual(item, item2)
 
-        with mock.patch.dict('openregistry.api.models.Item._options.roles', {'test': blacklist('__parent__', 'address')}):
+        with mock.patch.dict('openregistry.api.models.ocds.Item._options.roles', {'test': blacklist('__parent__', 'address')}):
             self.assertNotIn('address', item.serialize('test'))
             self.assertNotEqual(item.serialize('test'), item.serialize())
             self.assertEqual(item.serialize('test'), item2.serialize('test'))
@@ -266,7 +287,7 @@ class DummyModelsTest(unittest.TestCase):
         identifier.id = 'test'
         identifier.validate()
 
-        with mock.patch.dict('openregistry.api.models.Identifier._options.roles', {'test': blacklist('id')}):
+        with mock.patch.dict('openregistry.api.models.ocds.Identifier._options.roles', {'test': blacklist('id')}):
             self.assertIn('id', identifier.serialize().keys())
             self.assertNotIn('id', identifier.serialize('test').keys())
 
@@ -326,7 +347,7 @@ class DummyModelsTest(unittest.TestCase):
         organization.validate()
         self.assertEqual(organization.serialize(), data)
 
-        with mock.patch.dict('openregistry.api.models.Identifier._options.roles', {'view': blacklist('id')}):
+        with mock.patch.dict('openregistry.api.models.ocds.Identifier._options.roles', {'view': blacklist('id')}):
             self.assertNotEqual(organization.serialize('view'),
                                 organization.serialize())
             self.assertIn('id', organization.serialize()['identifier'].keys())
@@ -344,28 +365,11 @@ class DummyModelsTest(unittest.TestCase):
         self.assertNotEqual(organization, organization2)
         self.assertEqual(organization2.serialize(), data)
 
-    def test_HashType_model(self):
-        from uuid import uuid4
-
-        hash = HashType()
-
-        for invalid_hash in ['test', ':', 'test:']:
-            with self.assertRaisesRegexp(ValidationError, "Hash type is not supported."):
-                hash.to_native(invalid_hash)
-
-        with self.assertRaisesRegexp(ValidationError, "Hash value is wrong length."):
-            hash.to_native('sha512:')
-
-        with self.assertRaisesRegexp(ConversionError, "Hash value is not hexadecimal."):
-            hash.to_native('md5:{}'.format('-' * 32))
-
-        result = 'md5:{}'.format(uuid4().hex)
-        self.assertEqual(hash.to_native(result), result)
-
 
 def suite():
     suite = unittest.TestSuite()
-    suite.addTest(unittest.makeSuite(DummyModelsTest))
+    suite.addTest(unittest.makeSuite(DummyOCDSModelsTest))
+    suite.addTest(unittest.makeSuite(SchematicsExtenderTest))
     return suite
 
 
