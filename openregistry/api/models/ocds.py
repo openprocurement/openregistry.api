@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-from urlparse import urlparse, parse_qs
 from uuid import uuid4
 
 from schematics.types import (StringType, FloatType, URLType, IntType,
@@ -12,11 +11,14 @@ from openregistry.api.constants import (DEFAULT_CURRENCY,
     DEFAULT_ITEM_CLASSIFICATION, ITEM_CLASSIFICATIONS, TZ, DOCUMENT_TYPES,
     IDENTIFIER_CODES
 )
-from openregistry.api.utils import get_now
+from openregistry.api.utils import get_now, serialize_document_url
 
 from .schematics_extender import Model, IsoDateTimeType, HashType
 from .roles import document_roles, organization_roles
 
+
+# OCDS Building Blocks.
+# More info: http://standard.open-contracting.org/latest/en/getting_started/building_blocks
 
 class Value(Model):
     amount = FloatType(required=True, min_value=0)  # Amount as a number.
@@ -87,7 +89,7 @@ class Location(Model):
 
 
 class Document(Model):
-    class Options():
+    class Options:
         roles = document_roles
 
     id = MD5Type(required=True, default=lambda: uuid4().hex)
@@ -109,34 +111,7 @@ class Document(Model):
 
     @serializable(serialized_name="url")
     def download_url(self):
-        url = self.url
-        if not url or '?download=' not in url:
-            return url
-        doc_id = parse_qs(urlparse(url).query)['download'][-1]
-        root = self.__parent__
-        parents = []
-        while root.__parent__ is not None:
-            parents[0:0] = [root]
-            root = root.__parent__
-        request = root.request
-        if not request.registry.docservice_url:
-            return url
-        if 'status' in parents[0] and parents[0].status in type(parents[0])._options.roles:
-            role = parents[0].status
-            for index, obj in enumerate(parents):
-                if obj.id != url.split('/')[(index - len(parents)) * 2 - 1]:
-                    break
-                field = url.split('/')[(index - len(parents)) * 2]
-                if "_" in field:
-                    field = field[0] + field.title().replace("_", "")[1:]
-                roles = type(obj)._options.roles
-                if roles[role if role in roles else 'default'](field, []):
-                    return url
-        from openregistry.api.utils import generate_docservice_url
-        if not self.hash:
-            path = [i for i in urlparse(url).path.split('/') if len(i) == 32 and not set(i).difference(hexdigits)]
-            return generate_docservice_url(request, doc_id, False, '{}/{}'.format(path[0], path[-1]))
-        return generate_docservice_url(request, doc_id, False)
+        return serialize_document_url(self)
 
 
 class Identifier(Model):
@@ -179,7 +154,7 @@ class ContactPoint(Model):
 
 class Organization(Model):
     """An organization."""
-    class Options():
+    class Options:
         roles = organization_roles
 
     name = StringType(required=True)

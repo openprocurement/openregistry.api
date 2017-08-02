@@ -35,7 +35,6 @@ class IsoDateTimeType(BaseType):
         return value.isoformat()
 
 
-
 class HashType(StringType):
 
     MESSAGES = {
@@ -78,7 +77,7 @@ class Model(SchematicsModel):
 
     def __init__(self,*args, **kwargs):
         super(Model, self).__init__(*args, **kwargs)
-        for i, j in self._data.items():
+        for i, j in self._data.converted.items():
             if isinstance(j, list):
                 for x in j:
                     set_parent(x, self)

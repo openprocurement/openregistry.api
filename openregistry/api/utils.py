@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from datetime import datetime
+from string import hexdigits
 from json import dumps
 from uuid import uuid4
 from functools import partial
@@ -10,6 +11,11 @@ from cornice.util import json_error
 from cornice.resource import view
 from webob.multidict import NestedMultiDict
 from pkg_resources import iter_entry_points
+from urlparse import urlparse, parse_qs, urlunsplit
+from time import time as ttime
+from urllib import quote, urlencode
+from base64 import b64encode
+
 from jsonpatch import make_patch, apply_patch as _apply_patch
 
 from openregistry.api.events import ErrorDesctiptorEvent
@@ -163,6 +169,24 @@ def fix_url(item, app_url):
             for i in item
             if isinstance(item[i], dict) or isinstance(item[i], list)
         ]
+
+
+def generate_docservice_url(request, doc_id, temporary=True, prefix=None):
+    docservice_key = getattr(request.registry, 'docservice_key', None)
+    parsed_url = urlparse(request.registry.docservice_url)
+    query = {}
+    if temporary:
+        expires = int(ttime()) + 300  # EXPIRES
+        mess = "{}\0{}".format(doc_id, expires)
+        query['Expires'] = expires
+    else:
+        mess = doc_id
+    if prefix:
+        mess = '{}/{}'.format(prefix, mess)
+        query['Prefix'] = prefix
+    query['Signature'] = quote(b64encode(docservice_key.signature(mess.encode("utf-8"))))
+    query['KeyID'] = docservice_key.hex_vk()[:8]
+    return urlunsplit((parsed_url.scheme, parsed_url.netloc, '/get/{}'.format(doc_id), urlencode(query), ''))
 
 
 def forbidden(request):
@@ -321,3 +345,36 @@ def set_modetest_titles(item):
         item.title_en = u'[TESTING] {}'.format(item.title_en or u'')
     if not item.title_ru or u'[ТЕСТИРОВАНИЕ]' not in item.title_ru:
         item.title_ru = u'[ТЕСТИРОВАНИЕ] {}'.format(item.title_ru or u'')
+
+
+# Schematics Serialize Functions
+
+
+def serialize_document_url(document):
+    url = document.url
+    if not url or '?download=' not in url:
+        return url
+    doc_id = parse_qs(urlparse(url).query)['download'][-1]
+    root = document.__parent__
+    parents = []
+    while root.__parent__ is not None:
+        parents[0:0] = [root]
+        root = root.__parent__
+    request = root.request
+    if not request.registry.docservice_url:
+        return url
+    if 'status' in parents[0] and parents[0].status in type(parents[0])._options.roles:
+        role = parents[0].status
+        for index, obj in enumerate(parents):
+            if obj.id != url.split('/')[(index - len(parents)) * 2 - 1]:
+                break
+            field = url.split('/')[(index - len(parents)) * 2]
+            if "_" in field:
+                field = field[0] + field.title().replace("_", "")[1:]
+            roles = type(obj)._options.roles
+            if roles[role if role in roles else 'default'](field, []):
+                return url
+    if not document.hash:
+        path = [i for i in urlparse(url).path.split('/') if len(i) == 32 and not set(i).difference(hexdigits)]
+        return generate_docservice_url(request, doc_id, False, '{}/{}'.format(path[0], path[-1]))
+    return generate_docservice_url(request, doc_id, False)
