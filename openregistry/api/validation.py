@@ -13,6 +13,7 @@ def validate_json_data(request):
         request.errors.add('body', 'data', "Data not available")
         request.errors.status = 422
         return
+    request.validated['json_data'] = json['data']
     return json['data']
 
 
@@ -59,4 +60,5 @@ def validate_data(request, model, partial=False, data=None):
                 m = model(data)
                 m.__parent__ = request.context
                 request.validated[model.__name__.lower()] = m
+
     return data

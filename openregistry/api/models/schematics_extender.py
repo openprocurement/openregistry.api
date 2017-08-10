@@ -6,9 +6,9 @@ from schematics.exceptions import ConversionError, ValidationError
 
 from schematics.models import Model as SchematicsModel
 
+from schematics.types.compound import ListType as BaseListType
 from schematics.types import BaseType, StringType
-from schematics.transforms import whitelist, blacklist, export_loop
-
+from schematics.transforms import whitelist, blacklist, export_loop, convert
 from openregistry.api.constants import TZ
 from openregistry.api.utils import get_now, set_parent
 
@@ -63,8 +63,43 @@ class HashType(StringType):
         return value
 
 
-class Model(SchematicsModel):
+class ListType(BaseListType):
 
+    def export_loop(self, list_instance, field_converter,
+                    role=None, print_none=False):
+        """Loops over each item in the model and applies either the field
+        transform or the multitype transform.  Essentially functions the same
+        as `transforms.export_loop`.
+        """
+        data = []
+        for value in list_instance:
+            if hasattr(self.field, 'export_loop'):
+                shaped = self.field.export_loop(value, field_converter,
+                                                role=role,
+                                                print_none=print_none)
+                feels_empty = shaped and len(shaped) == 0
+            else:
+                shaped = field_converter(self.field, value)
+                feels_empty = shaped is None
+
+            # Print if we want empty or found a value
+            if feels_empty and self.field.allow_none():
+                data.append(shaped)
+            elif shaped is not None:
+                data.append(shaped)
+            elif print_none:
+                data.append(shaped)
+
+        # Return data if the list contains anything
+        if len(data) > 0:
+            return data
+        elif len(data) == 0 and self.allow_none():
+            return data
+        elif print_none:
+            return data
+
+
+class Model(SchematicsModel):
     class Options(object):
         """Export options for Document."""
         serialize_when_none = False
@@ -75,15 +110,6 @@ class Model(SchematicsModel):
 
     __parent__ = BaseType()
 
-    def __init__(self,*args, **kwargs):
-        super(Model, self).__init__(*args, **kwargs)
-        for i, j in self._data.converted.items():
-            if isinstance(j, list):
-                for x in j:
-                    set_parent(x, self)
-            else:
-                set_parent(j, self)
-
     def __eq__(self, other):
         if isinstance(other, self.__class__):
             for k in self._fields:
@@ -92,16 +118,27 @@ class Model(SchematicsModel):
             return True
         return NotImplemented
 
-    def serialize(self, *args, **kwargs):
-        return super(Model, self).serialize(raise_error_on_role=False, *args, **kwargs)
+    def convert(self, raw_data, **kw):
+        """
+        Converts the raw data into richer Python constructs according to the
+        fields on the model
+        """
+        value = convert(self.__class__, raw_data, **kw)
+        for i, j in value.items():
+            if isinstance(j, list):
+                for x in j:
+                    set_parent(x, self)
+            else:
+                set_parent(j, self)
+        return value
 
-    def to_patch(self, role=None, *arg, **kwargs):
+    def to_patch(self, role=None):
         """
         Return data as it would be validated. No filtering of output unless
         role is defined.
         """
-        field_converter = lambda field, value, context: field.to_primitive(value, context)
-        data = export_loop(self.__class__, self, field_converter=field_converter, role=role, raise_error_on_role=False, *arg, **kwargs)
+        field_converter = lambda field, value: field.to_primitive(value)
+        data = export_loop(self.__class__, self, field_converter, role=role, raise_error_on_role=True, print_none=True)
         return data
 
     def get_role(self):

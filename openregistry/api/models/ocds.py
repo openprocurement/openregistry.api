@@ -113,6 +113,21 @@ class Document(Model):
     def download_url(self):
         return serialize_document_url(self)
 
+    def import_data(self, raw_data, **kw):
+        """
+        Converts and imports the raw data into the instance of the model
+        according to the fields in the model.
+        :param raw_data:
+            The data to be imported.
+        """
+        data = self.convert(raw_data, **kw)
+        del_keys = [k for k in data.keys() if data[k] == getattr(self, k)]
+        for k in del_keys:
+            del data[k]
+
+        self._data.update(data)
+        return self
+
 
 class Identifier(Model):
     scheme = StringType(required=True, choices=IDENTIFIER_CODES)  # The scheme that holds the unique identifiers used to identify the item being identified.
