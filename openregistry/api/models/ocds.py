@@ -179,11 +179,3 @@ class Organization(Model):
     additionalIdentifiers = ListType(ModelType(Identifier))
     address = ModelType(Address, required=True)
     contactPoint = ModelType(ContactPoint, required=True)
-
-
-# TODO: move class Revision to another module
-class Revision(Model):
-    author = StringType()
-    date = IsoDateTimeType(default=get_now)
-    changes = ListType(DictType(BaseType), default=list())
-    rev = StringType()
