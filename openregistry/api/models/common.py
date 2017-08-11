@@ -42,6 +42,7 @@ class BaseResourceItem(SchematicsDocument, Model):
             The data to be imported.
         """
         data = self.convert(raw_data, **kw)
+        # TODO: DANGER FIX FOR STATUS FIELD
         del_keys = [k for k in data.keys() if (data[k] == self.__class__.fields[k].default and k != "status") or data[k] == getattr(self, k)]
         for k in del_keys:
             del data[k]
