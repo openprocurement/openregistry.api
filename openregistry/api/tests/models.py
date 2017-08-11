@@ -2,7 +2,7 @@
 import unittest
 import mock
 from datetime import datetime, timedelta
-from schematics.exceptions import ConversionError, ValidationError
+from schematics.exceptions import ConversionError, ValidationError, ModelValidationError
 
 from openregistry.api.utils import get_now
 
@@ -73,67 +73,62 @@ class DummyOCDSModelsTest(unittest.TestCase):
     def test_Period_model(self):
 
         period = Period()
-        self.assertEqual(period.serialize(), {})
+        self.assertEqual(period.serialize(), None)
 
-        period.startDate = now
+        data = {'startDate': now.isoformat()}
+        period.import_data(data)
         period.validate()
-        self.assertEqual(period.serialize().keys(),
-                         ['startDate'])
-        period.endDate = now
+        self.assertEqual(period.serialize(), data)
+        data['endDate'] = now.isoformat()
+        period.import_data(data)
         period.validate()
-        self.assertEqual(period.serialize().keys(),
-                         ['startDate', 'endDate'])
+        self.assertEqual(period.serialize(), data)
         period.startDate += timedelta(3)
-        with self.assertRaises(DataError):
+        with self.assertRaises(ModelValidationError):
             period.validate()  # {"startDate": ["period should begin before its end"]}
 
     def test_PeriodEndRequired_model(self):
 
         period = PeriodEndRequired()
-        self.assertEqual(period.serialize(), {})
+        self.assertEqual(period.serialize(), None)
 
         period.endDate = now
         period.validate()
 
         period.startDate = now + timedelta(1)
-        with self.assertRaises(DataError):
+        with self.assertRaises(ModelValidationError):
             period.validate()  # {"startDate": ["period should begin before its end"]})
 
         period.endDate = None
-        with self.assertRaises(DataError):
+        with self.assertRaises(ModelValidationError):
             period.validate()  # {'endDate': [u'This field is required.']}
 
         period.endDate = now + timedelta(2)
         period.validate()
 
     def test_Value_model(self):
-
         value = Value()
         self.assertEqual(value.serialize().keys(),
                          ['currency', 'valueAddedTaxIncluded'])
         self.assertEqual(Value.get_mock_object().serialize().keys(),
                          ['currency', 'amount', 'valueAddedTaxIncluded'])
-        with self.assertRaises(DataError):
+        with self.assertRaises(ModelValidationError):
             value.validate()  # {'amount': [u'This field is required.']}
 
         value.amount = -10
         self.assertEqual(value.serialize(), {'currency': u'UAH', 'amount': -10,
                                             'valueAddedTaxIncluded': True})
-        with self.assertRaises(DataError):
+        with self.assertRaises(ModelValidationError):
             value.validate()  # {'amount': [u'Float value should be greater than 0.']}
-        self.assertTrue(value.to_patch() == value.serialize() == {'currency': u'UAH',
-                                                                  'valueAddedTaxIncluded': True})
-        with self.assertRaises(DataError):
+        self.assertEqual(value.to_patch(), value.serialize())
+        with self.assertRaises(ModelValidationError):
             value.validate()  # {"amount": ["This field is required."]}
 
         value.amount = .0
         value.currency = None
-        self.assertEqual(value.serialize(),
-                         {'currency': u'UAH', 'amount': 0.0, 'valueAddedTaxIncluded': True})
-        with self.assertRaises(DataError):
-            value.validate()  # {"currency": ["This field is required."]}
-        self.assertEqual(value.amount, 0)
-        self.assertEqual(value.currency, u'UAH')
+        self.assertEqual(value.serialize(), {'amount': 0.0, 'valueAddedTaxIncluded': True})
+        value.validate()
+        self.assertEqual(value.serialize(), {'amount': 0.0, 'valueAddedTaxIncluded': True, "currency": u"UAH"})
 
     def test_Unit_model(self):
 
@@ -144,20 +139,20 @@ class DummyOCDSModelsTest(unittest.TestCase):
         self.assertEqual(unit.serialize().keys(), ['code', 'name'])
 
         unit.code = None
-        with self.assertRaises(DataError):
+        with self.assertRaises(ModelValidationError):
             unit.validate()  # {'code': [u'This field is required.']}
 
         data['value'] = {'amount': 5}
         unit = Unit(data)
         self.assertEqual(unit.serialize(), {'code': u'44617100-9', 'name': u'item',
-                         'value': {'currency': u'UAH', 'amount': 5., 'valueAddedTaxIncluded': True}})
+                                            'value': {'currency': u'UAH', 'amount': 5., 'valueAddedTaxIncluded': True}})
 
         unit.value.amount = -1000
         unit.value.valueAddedTaxIncluded = False
-        with self.assertRaises(DataError):
-            unit.validate()  # {'value': {'amount': [u'Float value should be greater than 0.']}}
         self.assertEqual(unit.serialize(), {'code': u'44617100-9', 'name': u'item',
-                         'value': {'currency': u'UAH', 'valueAddedTaxIncluded': False}})
+                                            'value': {'currency': u'UAH', 'amount': -1000, 'valueAddedTaxIncluded': False}})
+        with self.assertRaises(ModelValidationError):
+            unit.validate()  # {'value': {'amount': [u'Float value should be greater than 0.']}}
 
     def test_Classification_model(self):
 
@@ -169,7 +164,7 @@ class DummyOCDSModelsTest(unittest.TestCase):
 
         classification.scheme = None
         self.assertNotEqual(classification.serialize(), data)
-        with self.assertRaises(DataError):
+        with self.assertRaises(ModelValidationError):
             classification.validate()  # {"scheme": ["This field is required."]}
 
         scheme = data.pop('scheme')
@@ -183,12 +178,10 @@ class DummyOCDSModelsTest(unittest.TestCase):
     def test_ItemClassification_model(self):
 
         item_classification = ItemClassification.get_mock_object()
-        self.assertNotIn('id', item_classification.serialize().keys())
-        self.assertIn('id', item_classification.to_patch().keys())
+        self.assertIn('id', item_classification.serialize())
 
-        with self.assertRaises(DataError):
+        with self.assertRaises(ModelValidationError):
             item_classification.validate()  # {"id": ["Value must be one of ('test',)."]}
-        self.assertNotIn('id', item_classification.to_patch().keys())
 
         item_classification.import_data({'scheme': 'CPV', 'id': 'test'})
         item_classification.validate()
@@ -199,10 +192,10 @@ class DummyOCDSModelsTest(unittest.TestCase):
     def test_Location_model(self):
 
         location = Location()
-        self.assertEqual(location.serialize(), {})
-        with self.assertRaises(DataError) as ex:
+        self.assertEqual(location.serialize(), None)
+        with self.assertRaises(ModelValidationError) as ex:
             location.validate()
-        self.assertEqual(ex.exception, {'latitude': [u'This field is required.'],
+        self.assertEqual(ex.exception.messages, {'latitude': [u'This field is required.'],
                                         'longitude': [u'This field is required.']})
         location.import_data({'latitude': '123.1234567890',
                               'longitude': '-123.1234567890'})
@@ -242,12 +235,12 @@ class DummyOCDSModelsTest(unittest.TestCase):
         }
         item = Item(data)
         item.validate()
-        self.assertTrue(item.serialize() == item.to_patch() == data)
+        self.assertEqual(item.serialize(), data)
 
         data['location'] = {'latitude': '123', 'longitude': '567'}
         item2 = Item(data)
         item2.validate()
-        self.assertTrue(item2.serialize() == item2.to_patch() == data)
+        self.assertEqual(item2.serialize(), data)
 
         self.assertNotEqual(item, item2)
         item2.location = None
@@ -273,7 +266,7 @@ class DummyOCDSModelsTest(unittest.TestCase):
         self.assertEqual(address.serialize(), data)
 
         address.countryName = None
-        with self.assertRaises(DataError) as ex:
+        with self.assertRaises(ModelValidationError) as ex:
             address.validate()
         self.assertEqual(ex.exception.messages, {'countryName': [u'This field is required.']})
         address.countryName = data["countryName"]
@@ -283,9 +276,9 @@ class DummyOCDSModelsTest(unittest.TestCase):
     def test_Identifier_model(self):
 
         identifier = Identifier.get_mock_object()
-        with self.assertRaises(DataError) as ex:
+        with self.assertRaises(ModelValidationError) as ex:
             identifier.validate()
-        self.assertEqual(ex.exception, {"id": ["This field is required."]})
+        self.assertEqual(ex.exception.messages, {"id": ["This field is required."]})
 
         identifier.id = 'test'
         identifier.validate()
@@ -299,7 +292,7 @@ class DummyOCDSModelsTest(unittest.TestCase):
         contact = ContactPoint()
         self.assertEqual(contact.serialize(), None)
 
-        with self.assertRaises(DataError) as ex:
+        with self.assertRaises(ModelValidationError) as ex:
             contact.validate()
         self.assertEqual(ex.exception.messages, {"name": ["This field is required."]})
 
@@ -307,7 +300,7 @@ class DummyOCDSModelsTest(unittest.TestCase):
                 "telephone": u"0440000000"}
 
         contact.import_data({"name": data["name"]})
-        with self.assertRaises(DataError) as ex:
+        with self.assertRaises(ModelValidationError) as ex:
             contact.validate()
         self.assertEqual(ex.exception.messages, {"email": ["telephone or email should be present"]})
 
@@ -317,12 +310,12 @@ class DummyOCDSModelsTest(unittest.TestCase):
 
         contact.telephone = None
         telephone = data.pop('telephone')
-        with self.assertRaisesRegexp(DataError, 'email'):
+        with self.assertRaisesRegexp(ModelValidationError, 'email'):
             contact.validate()
         self.assertEqual(contact.serialize(), data)
 
         data.update({"email": 'qwe@example.test', "telephone": telephone})
-        contact.email = data['email']
+        contact.import_data(data)
         contact.validate()
         self.assertEqual(contact.serialize(), data)
 
