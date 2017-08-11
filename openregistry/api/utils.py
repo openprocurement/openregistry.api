@@ -15,7 +15,9 @@ from urlparse import urlparse, parse_qs, urlunsplit
 from time import time as ttime
 from urllib import quote, urlencode
 from base64 import b64encode
+from hashlib import sha512
 
+from schematics.types import StringType
 from jsonpatch import make_patch, apply_patch as _apply_patch
 
 from openregistry.api.events import ErrorDesctiptorEvent
@@ -99,7 +101,14 @@ def get_revision_changes(dst, src):
 def set_ownership(item, request):
     if not item.get('owner'):
         item.owner = request.authenticated_userid
-    item.owner_token = generate_id()
+    owner_token = generate_id()
+    item.owner_token = sha512(owner_token).hexdigest()
+    acc = {'token': owner_token}
+    if isinstance(getattr(type(item), 'transfer_token', None), StringType):
+        transfer_token = generate_id()
+        item.transfer_token = sha512(transfer_token).hexdigest()
+        acc['transfer'] = transfer_token
+    return acc
 
 
 def context_unpack(request, msg, params=None):

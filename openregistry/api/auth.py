@@ -29,7 +29,8 @@ class AuthenticationPolicy(BasicAuthAuthenticationPolicy):
         """ The userid parsed from the ``Authorization`` request header."""
         token = self._get_credentials(request)
         if token:
-            user = self.users.get(token)
+            toket_sha512 = sha512(token).hexdigest()
+            user = self.users.get(toket_sha512)
             if user:
                 return user['name']
 
@@ -49,7 +50,6 @@ class AuthenticationPolicy(BasicAuthAuthenticationPolicy):
                     token = isinstance(json, dict) and json.get('access', {}).get('token')
                 if not token:
                     return auth_groups
-        auth_groups.append('{}_{}'.format(user['name'], token))
         auth_groups.append('{}_{}'.format(user['name'], sha512(token).hexdigest()))
         return auth_groups
 
@@ -59,7 +59,8 @@ class AuthenticationPolicy(BasicAuthAuthenticationPolicy):
         # that, however, winds up duplicating logic from the superclass.
         token = self._get_credentials(request)
         if token:
-            user = self.users.get(token)
+            toket_sha512 = sha512(token).hexdigest()
+            user = self.users.get(toket_sha512)
             if user:
                 return self.check(user, request)
 
