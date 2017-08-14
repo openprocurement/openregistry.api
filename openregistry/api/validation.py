@@ -87,3 +87,24 @@ def validate_change_status(request, error_handler, **kwargs):
             request.authenticated_role not in statuses.get(new_status, {}):
         raise_operation_error(request, error_handler, msg)
 
+
+# Document validators
+
+def validate_patch_document_data(request, error_handler, **kwargs):
+    model = type(request.context)
+    return validate_data(request, model, True)
+
+
+def validate_file_upload(request, error_handler, **kwargs):
+    update_logging_context(request, {'document_id': '__new__'})
+    if 'file' not in request.POST or not hasattr(request.POST['file'], 'filename'):
+        request.errors.add('body', 'file', 'Not Found')
+        request.errors.status = 404
+        raise error_handler(request)
+    else:
+        request.validated['file'] = request.POST['file']
+
+
+def validate_file_update(request, error_handler, **kwargs):
+    if request.content_type == 'multipart/form-data':
+        validate_file_upload(request, error_handler, **kwargs)
