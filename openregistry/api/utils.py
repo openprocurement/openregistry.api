@@ -11,10 +11,9 @@ from cornice.util import json_error
 from cornice.resource import view
 from webob.multidict import NestedMultiDict
 from pkg_resources import iter_entry_points
-from urlparse import urlparse, parse_qs, urlunsplit, parse_qsl
-from time import time as ttime
-from urllib import quote, unquote, urlencode
-from base64 import b64encode, b64decode
+from urlparse import urlparse, parse_qs
+from urllib import quote
+from base64 import b64encode
 from hashlib import sha512
 from email.header import decode_header
 from rfc6266 import build_header
@@ -24,7 +23,7 @@ from jsonpatch import make_patch, apply_patch as _apply_patch
 
 from openregistry.api.events import ErrorDesctiptorEvent
 from openregistry.api.constants import (
-    LOGGER, TZ, ROUTE_PREFIX, SESSION,
+    LOGGER, TZ, ROUTE_PREFIX,
     DOCUMENT_BLACKLISTED_FIELDS, DOCUMENT_WHITELISTED_FIELDS
 )
 from openregistry.api.interfaces import IContentConfigurator
