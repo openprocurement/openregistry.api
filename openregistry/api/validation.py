@@ -1,5 +1,13 @@
 from schematics.exceptions import ModelValidationError, ModelConversionError
-from openregistry.api.utils import apply_data_patch, update_logging_context, error_handler, raise_operation_error
+from openregistry.api.constants import (
+    DOCUMENT_BLACKLISTED_FIELDS,
+    DOCUMENT_WHITELISTED_FIELDS
+)
+from openregistry.api.utils import (
+    apply_data_patch, update_logging_context,
+    check_document, update_document_url,
+    error_handler, raise_operation_error
+)
 
 
 def validate_json_data(request):
@@ -95,16 +103,28 @@ def validate_patch_document_data(request, error_handler, **kwargs):
     return validate_data(request, model, True)
 
 
+def validate_document_data(request, error_handler, **kwargs):
+    context = request.context if 'documents' in request.context else request.context.__parent__
+    model = type(context).documents.model_class
+    validate_data(request, model)
+
+    first_document = request.validated['documents'][-1] if 'documents' in request.validated and request.validated['documents'] else None
+    if 'data' in request.validated and request.validated['data']:
+        document = request.validated['document']
+        check_document(request, document, 'body')
+
+        if first_document:
+            for attr_name in type(first_document)._fields:
+                if attr_name in DOCUMENT_WHITELISTED_FIELDS:
+                    setattr(document, attr_name, getattr(first_document, attr_name))
+                elif attr_name not in DOCUMENT_BLACKLISTED_FIELDS and attr_name not in request.validated['json_data']:
+                    setattr(document, attr_name, getattr(first_document, attr_name))
+
+        document_route = request.matched_route.name.replace("collection_", "")
+        document = update_document_url(request, document, document_route, {})
+        request.validated['document'] = document
+
+
 def validate_file_upload(request, error_handler, **kwargs):
     update_logging_context(request, {'document_id': '__new__'})
-    if 'file' not in request.POST or not hasattr(request.POST['file'], 'filename'):
-        request.errors.add('body', 'file', 'Not Found')
-        request.errors.status = 404
-        raise error_handler(request)
-    else:
-        request.validated['file'] = request.POST['file']
-
-
-def validate_file_update(request, error_handler, **kwargs):
-    if request.content_type == 'multipart/form-data':
-        validate_file_upload(request, error_handler, **kwargs)
+    validate_document_data(request, error_handler, **kwargs)

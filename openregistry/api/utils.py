@@ -15,17 +15,13 @@ from urlparse import urlparse, parse_qs
 from urllib import quote
 from base64 import b64encode
 from hashlib import sha512
-from email.header import decode_header
 from rfc6266 import build_header
 
 from schematics.types import StringType
 from jsonpatch import make_patch, apply_patch as _apply_patch
 
 from openregistry.api.events import ErrorDesctiptorEvent
-from openregistry.api.constants import (
-    LOGGER, TZ, ROUTE_PREFIX,
-    DOCUMENT_BLACKLISTED_FIELDS, DOCUMENT_WHITELISTED_FIELDS
-)
+from openregistry.api.constants import LOGGER, TZ, ROUTE_PREFIX
 from openregistry.api.interfaces import IContentConfigurator
 
 
@@ -184,63 +180,26 @@ def fix_url(item, app_url):
         ]
 
 
-def upload_file(request, blacklisted_fields=DOCUMENT_BLACKLISTED_FIELDS, whitelisted_fields=DOCUMENT_WHITELISTED_FIELDS):
-    first_document = request.validated['documents'][-1] if 'documents' in request.validated and request.validated['documents'] else None
-    if request.content_type == 'multipart/form-data':
-        data = request.validated['file']
-        filename = get_filename(data)
-        content_type = data.type
-        in_file = data.file
+def generate_docservice_url(request, doc_id, temporary=True, prefix=None):
+    docservice_key = getattr(request.registry, 'docservice_key', None)
+    parsed_url = urlparse(request.registry.docservice_url)
+    query = {}
+    if temporary:
+        expires = int(ttime()) + 300  # EXPIRES
+        mess = "{}\0{}".format(doc_id, expires)
+        query['Expires'] = expires
     else:
-        filename = first_document.title
-        content_type = request.content_type
-        in_file = request.body_file
-
-    if hasattr(request.context, "documents"):
-        # upload new document
-        model = type(request.context).documents.model_class
-    else:
-        # update document
-        model = type(request.context)
-    document = model({'title': filename, 'format': content_type})
-    document.__parent__ = request.context
-    if 'document_id' in request.validated:
-        document.id = request.validated['document_id']
-    if first_document:
-        for attr_name in type(first_document)._fields:
-            if attr_name not in blacklisted_fields:
-                setattr(document, attr_name, getattr(first_document, attr_name))
-
-    key = generate_id()
-    filename = "{}_{}".format(document.id, key)
-    request.validated['db_doc']['_attachments'][filename] = {
-        "content_type": document.format,
-        "data": b64encode(in_file.read())
-    }
-
-    document_route = request.matched_route.name.replace("collection_", "")
-    document_path = request.current_route_path(_route_name=document_route, document_id=document.id, _query={'download': key})
-    document.url = '/' + '/'.join(document_path.split('/')[3:])
-    update_logging_context(request, {'file_size': in_file.tell()})
-    return document
+        mess = doc_id
+    if prefix:
+        mess = '{}/{}'.format(prefix, mess)
+        query['Prefix'] = prefix
+    query['Signature'] = quote(b64encode(docservice_key.signature(mess.encode("utf-8"))))
+    query['KeyID'] = docservice_key.hex_vk()[:8]
+    return urlunsplit((parsed_url.scheme, parsed_url.netloc, '/get/{}'.format(doc_id), urlencode(query), ''))
 
 
 def update_file_content_type(request):
     pass  # TODO
-
-
-def get_filename(data):
-    try:
-        pairs = decode_header(data.filename)
-    except Exception:
-        pairs = None
-    if not pairs:
-        return data.filename
-    header = pairs[0]
-    if header[1]:
-        return header[0].decode(header[1])
-    else:
-        return header[0]
 
 
 def get_file(request):
