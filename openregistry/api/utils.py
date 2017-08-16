@@ -11,11 +11,11 @@ from cornice.util import json_error
 from cornice.resource import view
 from webob.multidict import NestedMultiDict
 from pkg_resources import iter_entry_points
-from urlparse import urlparse, parse_qs, urlunsplit
-from time import time as ttime
-from urllib import quote, urlencode
+from urlparse import urlparse, parse_qs
+from urllib import quote
 from base64 import b64encode
 from hashlib import sha512
+from rfc6266 import build_header
 
 from schematics.types import StringType
 from jsonpatch import make_patch, apply_patch as _apply_patch
@@ -196,6 +196,29 @@ def generate_docservice_url(request, doc_id, temporary=True, prefix=None):
     query['Signature'] = quote(b64encode(docservice_key.signature(mess.encode("utf-8"))))
     query['KeyID'] = docservice_key.hex_vk()[:8]
     return urlunsplit((parsed_url.scheme, parsed_url.netloc, '/get/{}'.format(doc_id), urlencode(query), ''))
+
+
+def update_file_content_type(request):
+    pass  # TODO
+
+
+def get_file(request):
+    db_doc_id = request.validated['db_doc'].id
+    document = request.validated['document']
+    key = request.params.get('download')
+    if not any([key in i.url for i in request.validated['documents']]):
+        request.errors.add('url', 'download', 'Not Found')
+        request.errors.status = 404
+        return
+    filename = "{}_{}".format(document.id, key)
+    data = request.registry.db.get_attachment(db_doc_id, filename)
+    if data:
+        request.response.content_type = document.format.encode('utf-8')
+        request.response.content_disposition = build_header(document.title, filename_compat=quote(document.title.encode('utf-8')))
+        request.response.body_file = data
+        return request.response
+    request.errors.add('url', 'download', 'Not Found')
+    request.errors.status = 404
 
 
 def forbidden(request):
