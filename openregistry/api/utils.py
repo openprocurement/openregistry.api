@@ -16,17 +16,13 @@ from time import time as ttime
 from urllib import quote, unquote, urlencode
 from base64 import b64encode, b64decode
 from hashlib import sha512
-from email.header import decode_header
 from rfc6266 import build_header
 
 from schematics.types import StringType
 from jsonpatch import make_patch, apply_patch as _apply_patch
 
 from openregistry.api.events import ErrorDesctiptorEvent
-from openregistry.api.constants import (
-    LOGGER, TZ, ROUTE_PREFIX, SESSION,
-    DOCUMENT_BLACKLISTED_FIELDS, DOCUMENT_WHITELISTED_FIELDS
-)
+from openregistry.api.constants import LOGGER, TZ, ROUTE_PREFIX
 from openregistry.api.interfaces import IContentConfigurator
 
 
@@ -203,109 +199,8 @@ def generate_docservice_url(request, doc_id, temporary=True, prefix=None):
     return urlunsplit((parsed_url.scheme, parsed_url.netloc, '/get/{}'.format(doc_id), urlencode(query), ''))
 
 
-def upload_file(request, blacklisted_fields=DOCUMENT_BLACKLISTED_FIELDS, whitelisted_fields=DOCUMENT_WHITELISTED_FIELDS):
-    first_document = request.validated['documents'][-1] if 'documents' in request.validated and request.validated['documents'] else None
-    if 'data' in request.validated and request.validated['data']:
-        document = request.validated['document']
-        check_document(request, document, 'body')
-
-        if first_document:
-            for attr_name in type(first_document)._fields:
-                if attr_name in whitelisted_fields:
-                    setattr(document, attr_name, getattr(first_document, attr_name))
-                elif attr_name not in blacklisted_fields and attr_name not in request.validated['json_data']:
-                    setattr(document, attr_name, getattr(first_document, attr_name))
-
-        document_route = request.matched_route.name.replace("collection_", "")
-        document = update_document_url(request, document, document_route, {})
-        return document
-    if request.content_type == 'multipart/form-data':
-        data = request.validated['file']
-        filename = get_filename(data)
-        content_type = data.type
-        in_file = data.file
-    else:
-        filename = first_document.title
-        content_type = request.content_type
-        in_file = request.body_file
-
-    if hasattr(request.context, "documents"):
-        # upload new document
-        model = type(request.context).documents.model_class
-    else:
-        # update document
-        model = type(request.context)
-    document = model({'title': filename, 'format': content_type})
-    document.__parent__ = request.context
-    if 'document_id' in request.validated:
-        document.id = request.validated['document_id']
-    if first_document:
-        for attr_name in type(first_document)._fields:
-            if attr_name not in blacklisted_fields:
-                setattr(document, attr_name, getattr(first_document, attr_name))
-    if request.registry.docservice_url:
-        parsed_url = urlparse(request.registry.docservice_url)
-        url = request.registry.docservice_upload_url or urlunsplit((parsed_url.scheme, parsed_url.netloc, '/upload', '', ''))
-        files = {'file': (filename, in_file, content_type)}
-        doc_url = None
-        index = 10
-        while index:
-            try:
-                r = SESSION.post(url,
-                                 files=files,
-                                 headers={'X-Client-Request-ID': request.environ.get('REQUEST_ID', '')},
-                                 auth=(request.registry.docservice_username, request.registry.docservice_password)
-                                )
-                json_data = r.json()
-            except Exception, e:
-                LOGGER.warning("Raised exception '{}' on uploading document to document service': {}.".format(type(e), e),
-                               extra=context_unpack(request, {'MESSAGE_ID': 'document_service_exception'}, {'file_size': in_file.tell()}))
-            else:
-                if r.status_code == 200 and json_data.get('data', {}).get('url'):
-                    doc_url = json_data['data']['url']
-                    doc_hash = json_data['data']['hash']
-                    break
-                else:
-                    LOGGER.warning("Error {} on uploading document to document service '{}': {}".format(r.status_code, url, r.text),
-                                   extra=context_unpack(request, {'MESSAGE_ID': 'document_service_error'}, {'ERROR_STATUS': r.status_code, 'file_size': in_file.tell()}))
-            in_file.seek(0)
-            index -= 1
-        else:
-            request.errors.add('body', 'data', "Can't upload document to document service.")
-            request.errors.status = 422
-            raise error_handler(request)
-        document.hash = doc_hash
-        key = urlparse(doc_url).path.split('/')[-1]
-    else:
-        key = generate_id()
-        filename = "{}_{}".format(document.id, key)
-        request.validated['db_doc']['_attachments'][filename] = {
-            "content_type": document.format,
-            "data": b64encode(in_file.read())
-        }
-    document_route = request.matched_route.name.replace("collection_", "")
-    document_path = request.current_route_path(_route_name=document_route, document_id=document.id, _query={'download': key})
-    document.url = '/' + '/'.join(document_path.split('/')[3:])
-    update_logging_context(request, {'file_size': in_file.tell()})
-    return document
-
-
 def update_file_content_type(request):
     pass  # TODO
-
-
-def get_filename(data):
-    try:
-        pairs = decode_header(data.filename)
-    except Exception:
-        pairs = None
-    if not pairs:
-        return data.filename
-    header = pairs[0]
-    if header[1]:
-        return header[0].decode(header[1])
-    else:
-        return header[0]
 
 
 def get_file(request):
@@ -316,32 +211,21 @@ def get_file(request):
         request.errors.add('url', 'download', 'Not Found')
         request.errors.status = 404
         return
-    filename = "{}_{}".format(document.id, key)
-    if request.registry.docservice_url and filename not in request.validated['db_doc']['_attachments']:
-        document = [i for i in request.validated['documents'] if key in i.url][-1]
-        if 'Signature=' in document.url and 'KeyID' in document.url:
-            url = document.url
-        else:
-            if 'download=' not in document.url:
-                key = urlparse(document.url).path.replace('/get/', '')
-            if not document.hash:
-                url = generate_docservice_url(request, key, prefix='{}/{}'.format(db_doc_id, document.id))
-            else:
-                url = generate_docservice_url(request, key)
-        request.response.content_type = document.format.encode('utf-8')
-        request.response.content_disposition = build_header(document.title, filename_compat=quote(document.title.encode('utf-8')))
-        request.response.status = '302 Moved Temporarily'
-        request.response.location = url
-        return url
+    document = [i for i in request.validated['documents'] if key in i.url][-1]
+    if 'Signature=' in document.url and 'KeyID' in document.url:
+        url = document.url
     else:
-        data = request.registry.db.get_attachment(db_doc_id, filename)
-        if data:
-            request.response.content_type = document.format.encode('utf-8')
-            request.response.content_disposition = build_header(document.title, filename_compat=quote(document.title.encode('utf-8')))
-            request.response.body_file = data
-            return request.response
-        request.errors.add('url', 'download', 'Not Found')
-        request.errors.status = 404
+        if 'download=' not in document.url:
+            key = urlparse(document.url).path.replace('/get/', '')
+        if not document.hash:
+            url = generate_docservice_url(request, key, prefix='{}/{}'.format(db_doc_id, document.id))
+        else:
+            url = generate_docservice_url(request, key)
+    request.response.content_type = document.format.encode('utf-8')
+    request.response.content_disposition = build_header(document.title, filename_compat=quote(document.title.encode('utf-8')))
+    request.response.status = '302 Moved Temporarily'
+    request.response.location = url
+    return url
 
 
 def check_document(request, document, document_container):
