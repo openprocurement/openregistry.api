@@ -119,6 +119,7 @@ def validate_document_data(request, error_handler, **kwargs):
             elif attr_name not in DOCUMENT_BLACKLISTED_FIELDS and attr_name not in request.validated['json_data']:
                 setattr(document, attr_name, getattr(first_document, attr_name))
 
+    document.documentOf = type(context).__name__.lower()
     document_route = request.matched_route.name.replace("collection_", "")
     document = update_document_url(request, document, document_route, {})
     request.validated['document'] = document
