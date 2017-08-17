@@ -94,6 +94,7 @@ class Document(Model):
 
     id = MD5Type(required=True, default=lambda: uuid4().hex)
     hash = HashType()
+    documentOf = StringType(choices=['asset', 'lot'])
     documentType = StringType(choices=DOCUMENT_TYPES)
     title = StringType(required=True)  # A title of the document.
     title_en = StringType()
