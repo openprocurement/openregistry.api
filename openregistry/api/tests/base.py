@@ -104,6 +104,8 @@ class BaseResourceWebTest(BaseWebTest):
     @classmethod
     def blank(cls, path, *args, **kwargs):
         path = '/api/%s/%s%s' % (VERSION, cls.resource_name, path)
+        if path.endswith('/'):
+            path = path[:-1]
         return webtest.app.TestRequest.blank(path, *args, **kwargs)
 
     @classmethod
@@ -179,7 +181,7 @@ class BaseResourceWebTest(BaseWebTest):
         data = deepcopy(self.initial_data)
         if extra:
             data.update(extra)
-        response = self.app.post_json('', {'data': data})
+        response = self.app.post_json('/', {'data': data})
         resource = response.json['data']
         self.resource_token = response.json['access']['token']
         self.resource_id = resource['id']
