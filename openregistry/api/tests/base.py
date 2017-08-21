@@ -104,9 +104,12 @@ class BaseResourceWebTest(BaseWebTest):
     # setup of Test Case that adds prefix
     @classmethod
     def blank(cls, path, *args, **kwargs):
-        path = '/api/%s/%s%s' % (VERSION, cls.resource_name, path)
-        if path.endswith('/'):
-            path = path[:-1]
+        path = cls.resource_name + path
+        p = path.split('?', 1)
+        if p[0].endswith('/'):
+            p[0] = p[0][:-1]
+        path = '?'.join(p)
+        path = '/api/%s/%s' % (VERSION, path)
         return webtest.app.TestRequest.blank(path, *args, **kwargs)
 
     @classmethod
