@@ -99,6 +99,7 @@ class BaseResourceWebTest(BaseWebTest):
     resource_name = ''
     initial_data = None
     initial_status = None
+    init = False
     docservice = False
 
     # setup of Test Case that adds prefix
@@ -199,7 +200,7 @@ class BaseResourceWebTest(BaseWebTest):
         super(BaseResourceWebTest, self).setUp()
         if self.docservice:
             self.setUpDS()
-        if self.resource_name and self.initial_data:
+        if self.init:
             self.create_resource()
 
     def tearDown(self):
