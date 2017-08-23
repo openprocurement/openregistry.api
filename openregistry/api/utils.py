@@ -17,6 +17,7 @@ from urllib import quote, unquote, urlencode
 from base64 import b64encode, b64decode
 from hashlib import sha512
 from rfc6266 import build_header
+from jsonpointer import resolve_pointer
 
 from schematics.types import StringType
 from jsonpatch import make_patch, apply_patch as _apply_patch
@@ -93,6 +94,31 @@ def apply_data_patch(item, changes):
     if not patch_changes:
         return {}
     return _apply_patch(item, patch_changes)
+
+
+def prepare_revision(item, patch, author):
+    now = get_now()
+    status_changes = [
+        p
+        for p in patch
+        if not p['path'].startswith('/bids/') and p['path'].endswith("/status") and p['op'] == "replace"
+    ]
+    for change in status_changes:
+        obj = resolve_pointer(item, change['path'].replace('/status', ''))
+        if obj and hasattr(obj, "date"):
+            date_path = change['path'].replace('/status', '/date')
+            if obj.date and not any([p for p in patch if date_path == p['path']]):
+                patch.append({"op": "replace",
+                              "path": date_path,
+                              "value": obj.date.isoformat()})
+            elif not obj.date:
+                patch.append({"op": "remove", "path": date_path})
+            obj.date = now
+    return {
+        'author': author,
+        'changes': patch,
+        'rev': item.rev
+    }
 
 
 def get_revision_changes(dst, src):
