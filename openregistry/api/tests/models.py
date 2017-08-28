@@ -12,7 +12,7 @@ from openregistry.api.models.schematics_extender import (
 from openregistry.api.models.ocds import (
     Organization, ContactPoint, Identifier, Address,
     Item, Location, Unit, Value, ItemClassification, Classification,
-    Period, PeriodEndRequired
+    Period, PeriodEndRequired, Document
 )
 
 
