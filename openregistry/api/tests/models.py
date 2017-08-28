@@ -71,9 +71,11 @@ class DummyOCDSModelsTest(unittest.TestCase):
             - validation
     """
     def test_Period_model(self):
-
         period = Period()
+
         self.assertEqual(period.serialize(), None)
+        with self.assertRaisesRegexp(ValueError, 'Period Model has no role "test"'):
+            period.serialize('test')
 
         data = {'startDate': now.isoformat()}
         period.import_data(data)
@@ -90,9 +92,11 @@ class DummyOCDSModelsTest(unittest.TestCase):
                          {"startDate": ["period should begin before its end"]})
 
     def test_PeriodEndRequired_model(self):
-
         period = PeriodEndRequired()
+
         self.assertEqual(period.serialize(), None)
+        with self.assertRaisesRegexp(ValueError, 'PeriodEndRequired Model has no role "test"'):
+            period.serialize('test')
 
         period.endDate = now
         period.validate()
@@ -114,8 +118,12 @@ class DummyOCDSModelsTest(unittest.TestCase):
 
     def test_Value_model(self):
         value = Value()
+
         self.assertEqual(value.serialize().keys(),
                          ['currency', 'valueAddedTaxIncluded'])
+        with self.assertRaisesRegexp(ValueError, 'Value Model has no role "test"'):
+            value.serialize('test')
+
         self.assertEqual(Value.get_mock_object().serialize().keys(),
                          ['currency', 'amount', 'valueAddedTaxIncluded'])
         with self.assertRaises(ModelValidationError) as ex:
@@ -150,7 +158,10 @@ class DummyOCDSModelsTest(unittest.TestCase):
 
         unit = Unit(data)
         unit.validate()
+
         self.assertEqual(unit.serialize().keys(), ['code', 'name'])
+        with self.assertRaisesRegexp(ValueError, 'Unit Model has no role "test"'):
+            unit.serialize('test')
 
         unit.code = None
         with self.assertRaises(ModelValidationError) as ex:
@@ -178,7 +189,10 @@ class DummyOCDSModelsTest(unittest.TestCase):
 
         classification = Classification(data)
         classification.validate()
+
         self.assertEqual(classification.serialize(), data)
+        with self.assertRaisesRegexp(ValueError, 'Classification Model has no role "test"'):
+            classification.serialize('test')
 
         classification.scheme = None
         self.assertNotEqual(classification.serialize(), data)
@@ -196,9 +210,11 @@ class DummyOCDSModelsTest(unittest.TestCase):
     @mock.patch.dict('openregistry.api.constants.ITEM_CLASSIFICATIONS', {'CPV': ['test'],
                                                                          'CAV-PS': ['test2']})
     def test_ItemClassification_model(self):
-
         item_classification = ItemClassification.get_mock_object()
+
         self.assertIn('id', item_classification.serialize())
+        with self.assertRaisesRegexp(ValueError, 'ItemClassification Model has no role "test"'):
+            item_classification.serialize('test')
 
         item_classification.scheme = 'CPV'
         with self.assertRaises(ModelValidationError) as ex:
@@ -219,9 +235,12 @@ class DummyOCDSModelsTest(unittest.TestCase):
         item_classification.validate()
 
     def test_Location_model(self):
-
         location = Location()
+
         self.assertEqual(location.serialize(), None)
+        with self.assertRaisesRegexp(ValueError, 'Location Model has no role "test"'):
+            location.serialize('test')
+
         with self.assertRaises(ModelValidationError) as ex:
             location.validate()
         self.assertEqual(ex.exception.messages, {'latitude': [u'This field is required.'],
@@ -264,7 +283,10 @@ class DummyOCDSModelsTest(unittest.TestCase):
         }
         item = Item(data)
         item.validate()
+
         self.assertEqual(item.serialize(), data)
+        with self.assertRaisesRegexp(ValueError, 'Item Model has no role "test"'):
+            item.serialize('test')
 
         data['location'] = {'latitude': '123', 'longitude': '567'}
         item2 = Item(data)
@@ -292,7 +314,10 @@ class DummyOCDSModelsTest(unittest.TestCase):
 
         address = Address(data)
         address.validate()
+
         self.assertEqual(address.serialize(), data)
+        with self.assertRaisesRegexp(ValueError, 'Address Model has no role "test"'):
+            address.serialize('test')
 
         address.countryName = None
         with self.assertRaises(ModelValidationError) as ex:
@@ -303,8 +328,11 @@ class DummyOCDSModelsTest(unittest.TestCase):
         self.assertEqual(address.serialize(), data)
 
     def test_Identifier_model(self):
-
         identifier = Identifier.get_mock_object()
+
+        with self.assertRaisesRegexp(ValueError, 'Identifier Model has no role "test"'):
+            identifier.serialize('test')
+
         with self.assertRaises(ModelValidationError) as ex:
             identifier.validate()
         self.assertEqual(ex.exception.messages, {"id": ["This field is required."]})
@@ -317,9 +345,11 @@ class DummyOCDSModelsTest(unittest.TestCase):
             self.assertNotIn('id', identifier.serialize('test').keys())
 
     def test_ContactPoint_model(self):
-
         contact = ContactPoint()
+
         self.assertEqual(contact.serialize(), None)
+        with self.assertRaisesRegexp(ValueError, 'ContactPoint Model has no role "test"'):
+            contact.serialize('test')
 
         with self.assertRaises(ModelValidationError) as ex:
             contact.validate()
@@ -377,7 +407,10 @@ class DummyOCDSModelsTest(unittest.TestCase):
         }
         organization = Organization(data)
         organization.validate()
+
         self.assertEqual(organization.serialize(), data)
+        with self.assertRaisesRegexp(ValueError, 'Organization Model has no role "test"'):
+            organization.serialize('test')
 
         with mock.patch.dict('openregistry.api.models.ocds.Identifier._options.roles', {'view': blacklist('id')}):
             self.assertNotEqual(organization.serialize('view'),
@@ -394,6 +427,7 @@ class DummyOCDSModelsTest(unittest.TestCase):
 
         organization2 = Organization(data)
         organization2.validate()
+
         self.assertNotEqual(organization, organization2)
         self.assertEqual(organization2.serialize(), data)
 
