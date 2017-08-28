@@ -8,9 +8,9 @@ from schematics.models import Model as SchematicsModel
 
 from schematics.types.compound import ListType as BaseListType
 from schematics.types import BaseType, StringType
-from schematics.transforms import whitelist, blacklist, export_loop, convert
+from schematics.transforms import blacklist, export_loop, convert
 from openregistry.api.constants import TZ
-from openregistry.api.utils import get_now, set_parent
+from openregistry.api.utils import set_parent
 
 
 class IsoDateTimeType(BaseType):

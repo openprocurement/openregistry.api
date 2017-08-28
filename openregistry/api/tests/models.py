@@ -12,7 +12,7 @@ from openregistry.api.models.schematics_extender import (
 from openregistry.api.models.ocds import (
     Organization, ContactPoint, Identifier, Address,
     Item, Location, Unit, Value, ItemClassification, Classification,
-    Period, PeriodEndRequired, Document
+    Period, PeriodEndRequired
 )
 
 
@@ -370,10 +370,10 @@ class DummyOCDSModelsTest(unittest.TestCase):
 
 
 def suite():
-    suite = unittest.TestSuite()
-    suite.addTest(unittest.makeSuite(DummyOCDSModelsTest))
-    suite.addTest(unittest.makeSuite(SchematicsExtenderTest))
-    return suite
+    tests = unittest.TestSuite()
+    tests.addTest(unittest.makeSuite(DummyOCDSModelsTest))
+    tests.addTest(unittest.makeSuite(SchematicsExtenderTest))
+    return tests
 
 
 if __name__ == '__main__':

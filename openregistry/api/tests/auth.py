@@ -24,9 +24,9 @@ class AuthTest(TestBasicAuthAuthenticationPolicy):
 
 
 def suite():
-    suite = unittest.TestSuite()
-    suite.addTest(unittest.makeSuite(AuthTest))
-    return suite
+    tests = unittest.TestSuite()
+    tests.addTest(unittest.makeSuite(AuthTest))
+    return tests
 
 
 if __name__ == '__main__':

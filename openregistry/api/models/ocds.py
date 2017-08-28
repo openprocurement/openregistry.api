@@ -3,12 +3,12 @@ from uuid import uuid4
 
 from schematics.types import (StringType, FloatType, URLType, IntType,
                               BooleanType, BaseType, EmailType, MD5Type)
-from schematics.exceptions import ConversionError, ValidationError
-from schematics.types.compound import ModelType, DictType, ListType
+from schematics.exceptions import ValidationError
+from schematics.types.compound import ModelType, ListType
 from schematics.types.serializable import serializable
 
 from openregistry.api.constants import (DEFAULT_CURRENCY,
-    DEFAULT_ITEM_CLASSIFICATION, ITEM_CLASSIFICATIONS, TZ, DOCUMENT_TYPES,
+    DEFAULT_ITEM_CLASSIFICATION, ITEM_CLASSIFICATIONS, DOCUMENT_TYPES,
     IDENTIFIER_CODES
 )
 from openregistry.api.utils import get_now, serialize_document_url

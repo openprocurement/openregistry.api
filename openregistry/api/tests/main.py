@@ -6,12 +6,12 @@ from openregistry.api.tests import auth, spore, migration, models
 
 
 def suite():
-    suite = unittest.TestSuite()
-    suite.addTest(auth.suite())
-    suite.addTest(spore.suite())
-    suite.addTest(migration.suite())
-    suite.addTest(models.suite())
-    return suite
+    tests = unittest.TestSuite()
+    tests.addTest(auth.suite())
+    tests.addTest(spore.suite())
+    tests.addTest(migration.suite())
+    tests.addTest(models.suite())
+    return tests
 
 
 if __name__ == '__main__':
