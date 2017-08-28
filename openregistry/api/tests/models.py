@@ -84,8 +84,10 @@ class DummyOCDSModelsTest(unittest.TestCase):
         period.validate()
         self.assertEqual(period.serialize(), data)
         period.startDate += timedelta(3)
-        with self.assertRaises(ModelValidationError):
-            period.validate()  # {"startDate": ["period should begin before its end"]}
+        with self.assertRaises(ModelValidationError) as ex:
+            period.validate()
+        self.assertEqual(ex.exception.messages,
+                         {"startDate": ["period should begin before its end"]})
 
     def test_PeriodEndRequired_model(self):
 
@@ -96,12 +98,16 @@ class DummyOCDSModelsTest(unittest.TestCase):
         period.validate()
 
         period.startDate = now + timedelta(1)
-        with self.assertRaises(ModelValidationError):
-            period.validate()  # {"startDate": ["period should begin before its end"]})
+        with self.assertRaises(ModelValidationError) as ex:
+            period.validate()
+        self.assertEqual(ex.exception.message,
+                         {"startDate": ["period should begin before its end"]})
 
         period.endDate = None
-        with self.assertRaises(ModelValidationError):
-            period.validate()  # {'endDate': [u'This field is required.']}
+        with self.assertRaises(ModelValidationError) as ex:
+            period.validate()
+        self.assertEqual(ex.exception.message,
+                         {'endDate': [u'This field is required.']})
 
         period.endDate = now + timedelta(2)
         period.validate()
@@ -112,17 +118,25 @@ class DummyOCDSModelsTest(unittest.TestCase):
                          ['currency', 'valueAddedTaxIncluded'])
         self.assertEqual(Value.get_mock_object().serialize().keys(),
                          ['currency', 'amount', 'valueAddedTaxIncluded'])
-        with self.assertRaises(ModelValidationError):
-            value.validate()  # {'amount': [u'This field is required.']}
+        with self.assertRaises(ModelValidationError) as ex:
+            value.validate()
+        self.assertEqual(ex.exception.message,
+                         {'amount': [u'This field is required.']})
 
         value.amount = -10
         self.assertEqual(value.serialize(), {'currency': u'UAH', 'amount': -10,
                                             'valueAddedTaxIncluded': True})
-        with self.assertRaises(ModelValidationError):
-            value.validate()  # {'amount': [u'Float value should be greater than 0.']}
+        with self.assertRaises(ModelValidationError) as ex:
+            value.validate()
+        self.assertEqual(ex.exception.message,
+                         {'amount': [u'Float value should be greater than 0.']})
         self.assertEqual(value.to_patch(), value.serialize())
-        with self.assertRaises(ModelValidationError):
-            value.validate()  # {"amount": ["This field is required."]}
+
+        value.amount = None
+        with self.assertRaises(ModelValidationError) as ex:
+            value.validate()
+        self.assertEqual(ex.exception.message,
+                         {"amount": ["This field is required."]})
 
         value.amount = .0
         value.currency = None
@@ -139,8 +153,10 @@ class DummyOCDSModelsTest(unittest.TestCase):
         self.assertEqual(unit.serialize().keys(), ['code', 'name'])
 
         unit.code = None
-        with self.assertRaises(ModelValidationError):
-            unit.validate()  # {'code': [u'This field is required.']}
+        with self.assertRaises(ModelValidationError) as ex:
+            unit.validate()
+        self.assertEqual(ex.exception.message,
+                         {'code': [u'This field is required.']})
 
         data['value'] = {'amount': 5}
         unit = Unit(data)
@@ -151,8 +167,10 @@ class DummyOCDSModelsTest(unittest.TestCase):
         unit.value.valueAddedTaxIncluded = False
         self.assertEqual(unit.serialize(), {'code': u'44617100-9', 'name': u'item',
                                             'value': {'currency': u'UAH', 'amount': -1000, 'valueAddedTaxIncluded': False}})
-        with self.assertRaises(ModelValidationError):
-            unit.validate()  # {'value': {'amount': [u'Float value should be greater than 0.']}}
+        with self.assertRaises(ModelValidationError) as ex:
+            unit.validate()
+        self.assertEqual(ex.exception.message,
+                         {'value': {'amount': [u'Float value should be greater than 0.']}})
 
     def test_Classification_model(self):
 
@@ -164,8 +182,10 @@ class DummyOCDSModelsTest(unittest.TestCase):
 
         classification.scheme = None
         self.assertNotEqual(classification.serialize(), data)
-        with self.assertRaises(ModelValidationError):
-            classification.validate()  # {"scheme": ["This field is required."]}
+        with self.assertRaises(ModelValidationError) as ex:
+            classification.validate()
+        self.assertEqual(ex.exception.message,
+                         {"scheme": ["This field is required."]})
 
         scheme = data.pop('scheme')
         self.assertEqual(classification.serialize(), data)
@@ -173,15 +193,24 @@ class DummyOCDSModelsTest(unittest.TestCase):
         data["scheme"] = scheme
         classification.validate()
 
-    @mock.patch.dict('openregistry.api.constants.ITEM_CLASSIFICATIONS', {'CPV': ('test', ),
-                                                                         'CAV-PS': ('test2')})
+    @mock.patch.dict('openregistry.api.constants.ITEM_CLASSIFICATIONS', {'CPV': ['test'],
+                                                                         'CAV-PS': ['test2']})
     def test_ItemClassification_model(self):
 
         item_classification = ItemClassification.get_mock_object()
         self.assertIn('id', item_classification.serialize())
 
-        with self.assertRaises(ModelValidationError):
-            item_classification.validate()  # {"id": ["Value must be one of ('test',)."]}
+        item_classification.scheme = 'CPV'
+        with self.assertRaises(ModelValidationError) as ex:
+            item_classification.validate()
+        self.assertEqual(ex.exception.message,
+                         {"id": ["Value must be one of ['test']."]})
+
+        item_classification.scheme = 'CAV-PS'
+        with self.assertRaises(ModelValidationError) as ex:
+            item_classification.validate()
+        self.assertEqual(ex.exception.message,
+                         {"id": ["Value must be one of ['test2']."]})
 
         item_classification.import_data({'scheme': 'CPV', 'id': 'test'})
         item_classification.validate()
