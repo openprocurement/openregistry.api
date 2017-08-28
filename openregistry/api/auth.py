@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 import binascii
 from hashlib import sha512
-from pyramid.authentication import BasicAuthAuthenticationPolicy, b64decode
 from ConfigParser import ConfigParser
+from pyramid.authentication import BasicAuthAuthenticationPolicy, b64decode
 
 
 class AuthenticationPolicy(BasicAuthAuthenticationPolicy):
@@ -34,7 +34,8 @@ class AuthenticationPolicy(BasicAuthAuthenticationPolicy):
             if user:
                 return user['name']
 
-    def check(self, user, request):
+    @staticmethod
+    def check(user, request):
         token = request.params.get('acc_token')
         auth_groups = ['g:{}'.format(user['group'])]
         for i in user['level']:
@@ -64,7 +65,8 @@ class AuthenticationPolicy(BasicAuthAuthenticationPolicy):
             if user:
                 return self.check(user, request)
 
-    def _get_credentials(self, request):
+    @staticmethod
+    def _get_credentials(request):
         authorization = request.headers.get('Authorization')
         if not authorization:
             return None

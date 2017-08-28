@@ -11,11 +11,13 @@ from cornice.util import json_error
 from cornice.resource import view
 from webob.multidict import NestedMultiDict
 from pkg_resources import iter_entry_points
-from urlparse import urlparse, parse_qs, urlunsplit
+from urlparse import urlparse, parse_qs, urlunsplit, parse_qsl
 from time import time as ttime
-from urllib import quote, urlencode
-from base64 import b64encode
+from urllib import quote, unquote, urlencode
+from base64 import b64encode, b64decode
 from hashlib import sha512
+from rfc6266 import build_header
+from jsonpointer import resolve_pointer
 
 from schematics.types import StringType
 from jsonpatch import make_patch, apply_patch as _apply_patch
@@ -92,6 +94,31 @@ def apply_data_patch(item, changes):
     if not patch_changes:
         return {}
     return _apply_patch(item, patch_changes)
+
+
+def prepare_revision(item, patch, author):
+    now = get_now()
+    status_changes = [
+        p
+        for p in patch
+        if not p['path'].startswith('/bids/') and p['path'].endswith("/status") and p['op'] == "replace"
+    ]
+    for change in status_changes:
+        obj = resolve_pointer(item, change['path'].replace('/status', ''))
+        if obj and hasattr(obj, "date"):
+            date_path = change['path'].replace('/status', '/date')
+            if obj.date and not any([p for p in patch if date_path == p['path']]):
+                patch.append({"op": "replace",
+                              "path": date_path,
+                              "value": obj.date.isoformat()})
+            elif not obj.date:
+                patch.append({"op": "remove", "path": date_path})
+            obj.date = now
+    return {
+        'author': author,
+        'changes': patch,
+        'rev': item.rev
+    }
 
 
 def get_revision_changes(dst, src):
@@ -196,6 +223,83 @@ def generate_docservice_url(request, doc_id, temporary=True, prefix=None):
     query['Signature'] = quote(b64encode(docservice_key.signature(mess.encode("utf-8"))))
     query['KeyID'] = docservice_key.hex_vk()[:8]
     return urlunsplit((parsed_url.scheme, parsed_url.netloc, '/get/{}'.format(doc_id), urlencode(query), ''))
+
+
+def update_file_content_type(request):
+    pass  # TODO
+
+
+def get_file(request):
+    db_doc_id = request.validated['db_doc'].id
+    document = request.validated['document']
+    key = request.params.get('download')
+    if not any([key in i.url for i in request.validated['documents']]):
+        request.errors.add('url', 'download', 'Not Found')
+        request.errors.status = 404
+        return
+    document = [i for i in request.validated['documents'] if key in i.url][-1]
+    if 'Signature=' in document.url and 'KeyID' in document.url:
+        url = document.url
+    else:
+        if 'download=' not in document.url:
+            key = urlparse(document.url).path.replace('/get/', '')
+        if not document.hash:
+            url = generate_docservice_url(request, key, prefix='{}/{}'.format(db_doc_id, document.id))
+        else:
+            url = generate_docservice_url(request, key)
+    request.response.content_type = document.format.encode('utf-8')
+    request.response.content_disposition = build_header(document.title, filename_compat=quote(document.title.encode('utf-8')))
+    request.response.status = '302 Moved Temporarily'
+    request.response.location = url
+    return url
+
+
+def check_document(request, document, document_container):
+    url = document.url
+    parsed_url = urlparse(url)
+    parsed_query = dict(parse_qsl(parsed_url.query))
+    if not url.startswith(request.registry.docservice_url) or \
+            len(parsed_url.path.split('/')) != 3 or \
+            set(['Signature', 'KeyID']) != set(parsed_query):
+        request.errors.add(document_container, 'url', "Can add document only from document service.")
+        request.errors.status = 403
+        raise error_handler(request)
+    if not document.hash:
+        request.errors.add(document_container, 'hash', "This field is required.")
+        request.errors.status = 422
+        raise error_handler(request)
+    keyid = parsed_query['KeyID']
+    if keyid not in request.registry.keyring:
+        request.errors.add(document_container, 'url', "Document url expired.")
+        request.errors.status = 422
+        raise error_handler(request)
+    dockey = request.registry.keyring[keyid]
+    signature = parsed_query['Signature']
+    key = urlparse(url).path.split('/')[-1]
+    try:
+        signature = b64decode(unquote(signature))
+    except TypeError:
+        request.errors.add(document_container, 'url', "Document url signature invalid.")
+        request.errors.status = 422
+        raise error_handler(request)
+    mess = "{}\0{}".format(key, document.hash.split(':', 1)[-1])
+    try:
+        if mess != dockey.verify(signature + mess.encode("utf-8")):
+            raise ValueError
+    except ValueError:
+        request.errors.add(document_container, 'url', "Document url invalid.")
+        request.errors.status = 422
+        raise error_handler(request)
+
+
+def update_document_url(request, document, document_route, route_kwargs):
+    key = urlparse(document.url).path.split('/')[-1]
+    route_kwargs.update({'_route_name': document_route,
+                         'document_id': document.id,
+                         '_query': {'download': key}})
+    document_path = request.current_route_path(**route_kwargs)
+    document.url = '/' + '/'.join(document_path.split('/')[3:])
+    return document
 
 
 def forbidden(request):
