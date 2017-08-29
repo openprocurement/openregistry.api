@@ -47,10 +47,10 @@ class HealthTestBase(BaseWebTest):
         response = self.app.get('/health', status=503)
         self.assertEqual(response.status, '503 Service Unavailable')
 
-        response = self.app.get('/health?health_threshold_func=all', status=503)
+        response = self.app.get('/health', params={'health_threshold_func': 'all'}, status=503)
         self.assertEqual(response.status, '503 Service Unavailable')
 
-        response = self.app.get('/health?health_threshold_func=any', status=503)
+        response = self.app.get('/health', params={'health_threshold_func': 'any'}, status=503)
         self.assertEqual(response.status, '503 Service Unavailable')
 
 class HealthTest503(HealthTestBase):
@@ -68,10 +68,10 @@ class HealthTest200(HealthTestBase):
         response = self.app.get('/health', status=200)
         self.assertEqual(response.status, '200 OK')
 
-        response = self.app.get('/health?health_threshold_func=all', status=200)
+        response = self.app.get('/health', params={'health_threshold_func': 'all'}, status=200)
         self.assertEqual(response.status, '200 OK')
 
-        response = self.app.get('/health?health_threshold_func=any', status=200)
+        response = self.app.get('/health', params={'health_threshold_func': 'any'}, status=200)
         self.assertEqual(response.status, '200 OK')
 
 
@@ -83,7 +83,7 @@ class HealthTest_all(HealthTestBase):
         response = self.app.get('/health', status=200)
         self.assertEqual(response.status, '200 OK')
 
-        response = self.app.get('/health?health_threshold_func=all', status=200)
+        response = self.app.get('/health', params={'health_threshold_func': 'all'}, status=200)
         self.assertEqual(response.status, '200 OK')
 
 
@@ -92,5 +92,5 @@ class HealthTest_any(HealthTestBase):
 
 
     def test_health_view(self):
-        response = self.app.get('/health?health_threshold_func=any', status=200)
+        response = self.app.get('/health', params={'health_threshold_func': 'any'}, status=200)
         self.assertEqual(response.status, '200 OK')

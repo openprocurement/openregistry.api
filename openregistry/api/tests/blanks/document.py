@@ -431,8 +431,8 @@ def create_resource_document_json(self):
     self.assertEqual(doc_id, response.json["data"][0]["id"])
     self.assertEqual(u'укр.doc', response.json["data"][0]["title"])
 
-    response = self.app.get('/{}/documents/{}?download=some_id'.format(
-        self.resource_id, doc_id), status=404)
+    response = self.app.get('/{}/documents/{}'.format(self.resource_id, doc_id),
+                            params={'download': 'some_id'}, status=404)
     self.assertEqual(response.status, '404 Not Found')
     self.assertEqual(response.content_type, 'application/json')
     self.assertEqual(response.json['status'], 'error')
@@ -440,8 +440,8 @@ def create_resource_document_json(self):
         {u'description': u'Not Found', u'location': u'url', u'name': u'download'}
     ])
 
-    response = self.app.get('/{}/documents/{}?download={}'.format(
-        self.resource_id, doc_id, key))
+    response = self.app.get('/{}/documents/{}'.format(self.resource_id, doc_id),
+                            params={'download': key})
     self.assertEqual(response.status, '302 Moved Temporarily')
     self.assertIn('http://localhost/get/', response.location)
     self.assertIn('Signature=', response.location)
@@ -509,8 +509,8 @@ def put_resource_document_json(self):
     self.assertIn('KeyID=', tender['documents'][-1]["url"])
     self.assertNotIn('Expires=', tender['documents'][-1]["url"])
 
-    response = self.app.get('/{}/documents/{}?download={}'.format(
-        self.resource_id, doc_id, key))
+    response = self.app.get('/{}/documents/{}'.format(self.resource_id, doc_id),
+                            params={'download': key})
     self.assertEqual(response.status, '302 Moved Temporarily')
     self.assertIn('http://localhost/get/', response.location)
     self.assertIn('Signature=', response.location)
@@ -528,7 +528,7 @@ def put_resource_document_json(self):
     self.assertEqual(dateModified, response.json["data"]["previousVersions"][0]['dateModified'])
     self.assertEqual(response.json["data"]['datePublished'], datePublished)
 
-    response = self.app.get('/{}/documents?all=true'.format(self.resource_id))
+    response = self.app.get('/{}/documents'.format(self.resource_id), params={'all': 'true'})
     self.assertEqual(response.status, '200 OK')
     self.assertEqual(response.content_type, 'application/json')
     self.assertEqual(dateModified, response.json["data"][0]['dateModified'])
@@ -575,8 +575,8 @@ def put_resource_document_json(self):
     self.assertIn('KeyID=', tender['documents'][-1]["url"])
     self.assertNotIn('Expires=', tender['documents'][-1]["url"])
 
-    response = self.app.get('/{}/documents/{}?download={}'.format(
-        self.resource_id, doc_id, key))
+    response = self.app.get('/{}/documents/{}'.format(self.resource_id, doc_id),
+                            params={'download': key})
     self.assertEqual(response.status, '302 Moved Temporarily')
     self.assertIn('http://localhost/get/', response.location)
     self.assertIn('Signature=', response.location)

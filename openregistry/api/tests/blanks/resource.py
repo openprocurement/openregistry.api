@@ -34,13 +34,13 @@ def listing(self):
     self.assertEqual([i['dateModified'] for i in response.json['data']], sorted([i['dateModified'] for i in resource_list]))
 
     for _ in range(10):
-        response = self.app.get('/?offset={}'.format(offset))
+        response = self.app.get('/', params={'offset': offset})
         self.assertEqual(response.status, '200 OK')
         if len(response.json['data']) == 1:
             break
     self.assertEqual(len(response.json['data']), 1)
 
-    response = self.app.get('/?limit=2')
+    response = self.app.get('/', params={'limit': 2})
     self.assertEqual(response.status, '200 OK')
     self.assertNotIn('prev_page', response.json)
     self.assertEqual(len(response.json['data']), 2)
@@ -61,7 +61,7 @@ def listing(self):
     self.assertEqual(set(response.json['data'][0]), set([u'id', u'dateModified', u'status']))
     self.assertIn('opt_fields=status', response.json['next_page']['uri'])
 
-    response = self.app.get('/?descending=1')
+    response = self.app.get('/', params={'descending': 1})
     self.assertEqual(response.status, '200 OK')
     self.assertEqual(response.content_type, 'application/json')
     self.assertEqual(len(response.json['data']), 3)
@@ -70,7 +70,7 @@ def listing(self):
     self.assertEqual([i['dateModified'] for i in response.json['data']],
                      sorted([i['dateModified'] for i in resource_list], reverse=True))
 
-    response = self.app.get('/?descending=1&limit=2')
+    response = self.app.get('/', params={'descending': 1, 'limit': 2})
     self.assertEqual(response.status, '200 OK')
     self.assertNotIn('descending=1', response.json['prev_page']['uri'])
     self.assertEqual(len(response.json['data']), 2)
@@ -88,13 +88,13 @@ def listing(self):
     self.create_resource(extra={"mode": "test"})
 
     for _ in range(10):
-        response = self.app.get('/?mode=test')
+        response = self.app.get('/', params={'mode': 'test'})
         self.assertEqual(response.status, '200 OK')
         if len(response.json['data']) == 1:
             break
     self.assertEqual(len(response.json['data']), 1)
 
-    response = self.app.get('/?mode=_all_')
+    response = self.app.get('/', params={'mode': '_all_'})
     self.assertEqual(response.status, '200 OK')
     self.assertEqual(len(response.json['data']), 4)
 
@@ -102,7 +102,7 @@ def listing(self):
 def listing_changes(self):
     prefix = '{}/{}'.format(ROUTE_PREFIX, self.resource_name)
 
-    response = self.app.get('/?feed=changes')
+    response = self.app.get('/', params={'feed': 'changes'})
     self.assertEqual(response.status, '200 OK')
     self.assertEqual(len(response.json['data']), 0)
 
@@ -111,7 +111,7 @@ def listing_changes(self):
     ids = ','.join([i['id'] for i in resource_list])
 
     for _ in range(10):
-        response = self.app.get('/?feed=changes')
+        response = self.app.get('/', params={'feed': 'changes'})
         self.assertTrue(ids.startswith(','.join([i['id'] for i in response.json['data']])))
         if len(response.json['data']) == 3:
             break
@@ -124,7 +124,7 @@ def listing_changes(self):
     self.assertEqual(set([i['dateModified'] for i in response.json['data']]), set([i['dateModified'] for i in resource_list]))
     self.assertEqual([i['dateModified'] for i in response.json['data']], sorted([i['dateModified'] for i in resource_list]))
 
-    response = self.app.get('/?feed=changes&limit=2')
+    response = self.app.get('/', params={'feed': 'changes', 'limit': 2})
     self.assertEqual(response.status, '200 OK')
     self.assertNotIn('prev_page', response.json)
     self.assertEqual(len(response.json['data']), 2)
@@ -139,13 +139,13 @@ def listing_changes(self):
     self.assertIn('descending=1', response.json['prev_page']['uri'])
     self.assertEqual(len(response.json['data']), 0)
 
-    response = self.app.get('/?feed=changes', params=[('opt_fields', 'status')])
+    response = self.app.get('/', params={'feed': 'changes', 'opt_fields': 'status'})
     self.assertEqual(response.status, '200 OK')
     self.assertEqual(len(response.json['data']), 3)
     self.assertEqual(set(response.json['data'][0]), set([u'id', u'dateModified', u'status']))
     self.assertIn('opt_fields=status', response.json['next_page']['uri'])
 
-    response = self.app.get('/?feed=changes&descending=1')
+    response = self.app.get('/', params={'feed': 'changes', 'descending': 1})
     self.assertEqual(response.status, '200 OK')
     self.assertEqual(response.content_type, 'application/json')
     self.assertEqual(len(response.json['data']), 3)
@@ -153,7 +153,7 @@ def listing_changes(self):
     self.assertEqual(set([i['id'] for i in response.json['data']]), set([i['id'] for i in resource_list]))
     self.assertEqual([i['dateModified'] for i in response.json['data']], sorted([i['dateModified'] for i in resource_list], reverse=True))
 
-    response = self.app.get('/?feed=changes&descending=1&limit=2')
+    response = self.app.get('/', params={'feed': 'changes', 'descending': 1, 'limit': 2})
     self.assertEqual(response.status, '200 OK')
     self.assertNotIn('descending=1', response.json['prev_page']['uri'])
     self.assertEqual(len(response.json['data']), 2)
@@ -171,13 +171,13 @@ def listing_changes(self):
     self.create_resource(extra={"mode": "test"})
 
     for _ in range(10):
-        response = self.app.get('/?feed=changes&mode=test')
+        response = self.app.get('/', params={'feed': 'changes', 'mode': 'test'})
         self.assertEqual(response.status, '200 OK')
         if len(response.json['data']) == 1:
             break
     self.assertEqual(len(response.json['data']), 1)
 
-    response = self.app.get('/?feed=changes&mode=_all_')
+    response = self.app.get('/', params={'feed': 'changes', 'mode': '_all_'})
     self.assertEqual(response.status, '200 OK')
     self.assertEqual(len(response.json['data']), 4)
 
@@ -253,7 +253,7 @@ def get_resource(self):
     self.assertEqual(response.content_type, 'application/javascript')
     self.assertIn('callback({"data": {"', response.body)
 
-    response = self.app.get('/{}?opt_pretty=1'.format(resource['id']))
+    response = self.app.get('/{}'.format(resource['id']), params={'opt_pretty': 1})
     self.assertEqual(response.status, '200 OK')
     self.assertEqual(response.content_type, 'application/json')
     self.assertIn('{\n    "data": {\n        "', response.body)
