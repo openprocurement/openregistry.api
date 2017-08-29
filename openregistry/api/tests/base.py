@@ -188,7 +188,7 @@ class BaseResourceWebTest(BaseWebTest):
             data.update(extra)
         response = self.app.post_json('/', {'data': data})
         resource = response.json['data']
-        self.resource_token = response.json['access']['token']
+        self.resource_token = str(response.json['access']['token'])
         self.resource_id = resource['id']
         status = resource['status']
         if self.initial_status and self.initial_status != status:

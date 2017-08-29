@@ -267,7 +267,7 @@ def dateModified_resource(self):
     response = self.app.post_json('/', {'data': self.initial_data})
     self.assertEqual(response.status, '201 Created')
     resource = response.json['data']
-    token = response.json['access']['token']
+    token = str(response.json['access']['token'])
     dateModified = resource['dateModified']
 
     response = self.app.get('/{}'.format(resource['id']))
@@ -275,8 +275,10 @@ def dateModified_resource(self):
     self.assertEqual(response.content_type, 'application/json')
     self.assertEqual(response.json['data']['dateModified'], dateModified)
 
-    response = self.app.patch_json('/{}?acc_token={}'.format(
-        resource['id'], token), {'data': {'status': 'pending'}})
+    response = self.app.patch_json('/{}'.format(resource['id']),
+        headers={'X-Access-Token': token}, params={
+            'data': {'status': 'pending'}
+    })
     self.assertEqual(response.status, '200 OK')
     self.assertEqual(response.content_type, 'application/json')
     self.assertEqual(response.json['data']['status'], 'pending')
