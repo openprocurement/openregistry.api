@@ -22,7 +22,7 @@ def not_found(self):
     ])
 
     response = self.app.post('/{}/documents'.format(self.resource_id),
-                             headers={'X-Access-Token': self.resource_token},
+                             headers=self.access_header,
                              upload_files=[('file', u'укр.doc', 'content')],
                              status=415)
     self.assertEqual(response.status, '415 Unsupported Media Type')
@@ -31,7 +31,7 @@ def not_found(self):
                      "Content-Type header should be one of ['application/json']")
 
     response = self.app.post_json('/some_id/documents',
-        headers={'X-Access-Token': self.resource_token}, params={
+        headers=self.access_header, params={
             'data': {
                 'title': u'укр.doc',
                 'url': self.generate_docservice_url(),
@@ -57,7 +57,7 @@ def not_found(self):
     ])
 
     response = self.app.put('/{}/documents/some_id'.format(self.resource_id),
-                            headers={'X-Access-Token': self.resource_token},
+                            headers=self.access_header,
                             status=404, upload_files=[('file', 'name.doc', 'content2')])
     self.assertEqual(response.status, '404 Not Found')
     self.assertEqual(response.content_type, 'application/json')
@@ -76,7 +76,7 @@ def not_found(self):
     ])
 
     response = self.app.get('/{}/documents/some_id'.format(self.resource_id),
-                            headers={'X-Access-Token': self.resource_token}, status=404)
+                            headers=self.access_header, status=404)
     self.assertEqual(response.status, '404 Not Found')
     self.assertEqual(response.content_type, 'application/json')
     self.assertEqual(response.json['status'], 'error')
@@ -90,7 +90,7 @@ def create_document_in_forbidden_resource_status(self):
     self.set_status(self.forbidden_document_modification_actions_status)
 
     response = self.app.post_json('/{}/documents'.format(self.resource_id),
-        headers={'X-Access-Token': self.resource_token}, params={
+        headers=self.access_header, params={
             'data': {
                 'title': u'укр.doc',
                 'url': self.generate_docservice_url(),
@@ -111,7 +111,7 @@ def put_resource_document_invalid(self):
     environ['CONTENT_TYPE'] = 'multipart/form-data; boundary=BOUNDARY'
     environ['REQUEST_METHOD'] = 'POST'
     req = self.app.RequestClass.blank(self.app._remove_fragment('/{}/documents'.format(self.resource_id)), environ)
-    req.headers.environ['X-Access-Token'] = self.resource_token
+    req.headers.environ['X-Access-Token'] = str(self.resource_token)
     req.environ['wsgi.input'] = BytesIO(body.encode('utf8'))
     req.content_length = len(body)
     response = self.app.do_request(req, status=422)
@@ -133,7 +133,7 @@ def put_resource_document_invalid(self):
                      "Content-Type header should be one of ['application/json']")
 
     response = self.app.post_json('/{}/documents'.format(self.resource_id),
-        headers={'X-Access-Token': self.resource_token}, params={
+        headers=self.access_header, params={
             'data': {
                 'title': u'укр.doc',
                 'url': self.generate_docservice_url(),
@@ -147,7 +147,7 @@ def put_resource_document_invalid(self):
     self.assertIn(doc_id, response.headers['Location'])
 
     response = self.app.put('/{}/documents/{}'.format(self.resource_id, doc_id),
-                            headers={'X-Access-Token': self.resource_token},
+                            headers=self.access_header,
                             upload_files=[('file', 'name  name.doc', 'content2')],
                             status=415)
     self.assertEqual(response.status, '415 Unsupported Media Type')
@@ -158,7 +158,7 @@ def put_resource_document_invalid(self):
 
 def patch_resource_document(self):
     response = self.app.post_json('/{}/documents'.format(self.resource_id),
-        headers={'X-Access-Token': self.resource_token}, params={
+        headers=self.access_header, params={
             'data': {
                 'title': u'укр.doc',
                 'url': self.generate_docservice_url(),
@@ -174,7 +174,7 @@ def patch_resource_document(self):
     self.assertNotIn("documentType", response.json["data"])
 
     response = self.app.patch_json('/{}/documents/{}'.format(self.resource_id, doc_id),
-        headers={'X-Access-Token': self.resource_token}, params={
+        headers=self.access_header, params={
             'data': {
                 'documentOf': 'item',
                 'relatedItem': '0' * 32
@@ -187,7 +187,7 @@ def patch_resource_document(self):
     ])
 
     response = self.app.patch_json('/{}/documents/{}'.format(self.resource_id, doc_id),
-        headers={'X-Access-Token': self.resource_token}, params={
+        headers=self.access_header, params={
             "data": {
                 "description": "document description",
                 "documentType": 'tenderNotice'
@@ -199,7 +199,7 @@ def patch_resource_document(self):
         {u'description': [u"Value must be one of []."], u'location': u'body', u'name': u'documentType'}
     ])
     response = self.app.patch_json('/{}/documents/{}'.format(self.resource_id, doc_id),
-        headers={'X-Access-Token': self.resource_token}, params={
+        headers=self.access_header, params={
             "data": {
                 "description": "document description"
             }})
@@ -209,7 +209,7 @@ def patch_resource_document(self):
     self.assertNotIn("documentType", response.json["data"])
 
     response = self.app.get('/{}/documents/{}'.format(self.resource_id, doc_id),
-                            headers={'X-Access-Token': self.resource_token})
+                            headers=self.access_header)
     self.assertEqual(response.status, '200 OK')
     self.assertEqual(response.content_type, 'application/json')
     self.assertEqual(doc_id, response.json["data"]["id"])
@@ -219,7 +219,7 @@ def patch_resource_document(self):
     self.set_status(self.forbidden_document_modification_actions_status)
 
     response = self.app.patch_json('/{}/documents/{}'.format(self.resource_id, doc_id),
-        headers={'X-Access-Token': self.resource_token}, params={
+        headers=self.access_header, params={
             "data": {
                 "description": "document description"
             }}, status=403)
@@ -231,7 +231,7 @@ def patch_resource_document(self):
 
 def create_resource_document_error(self):
     response = self.app.post('/{}/documents'.format(self.resource_id),
-                             headers={'X-Access-Token': self.resource_token},
+                             headers=self.access_header,
                              upload_files=[('file', u'укр.doc', 'content')],
                              status=415)
     self.assertEqual(response.status, '415 Unsupported Media Type')
@@ -241,7 +241,7 @@ def create_resource_document_error(self):
 
     self.tearDownDS()
     response = self.app.post('/{}/documents'.format(self.resource_id),
-                             headers={'X-Access-Token': self.resource_token},
+                             headers=self.access_header,
                              upload_files=[('file', u'укр.doc', 'content')],
                              status=415)
     self.assertEqual(response.status, '415 Unsupported Media Type')
@@ -251,7 +251,7 @@ def create_resource_document_error(self):
 
     self.setUpBadDS()
     response = self.app.post('/{}/documents'.format(self.resource_id),
-                             headers={'X-Access-Token': self.resource_token},
+                             headers=self.access_header,
                              upload_files=[('file', u'укр.doc', 'content')],
                              status=415)
     self.assertEqual(response.status, '415 Unsupported Media Type')
@@ -262,7 +262,7 @@ def create_resource_document_error(self):
 
 def create_resource_document_json_invalid(self):
     response = self.app.post_json('/{}/documents'.format(self.resource_id),
-        headers={'X-Access-Token': self.resource_token}, params={
+        headers=self.access_header, params={
             'data': {
                 'title': u'укр.doc',
                 'url': self.generate_docservice_url(),
@@ -273,7 +273,7 @@ def create_resource_document_json_invalid(self):
     self.assertEqual(response.json['errors'][0]["description"], "This field is required.")
 
     response = self.app.post_json('/{}/documents'.format(self.resource_id),
-        headers={'X-Access-Token': self.resource_token}, params={
+        headers=self.access_header, params={
             'data': {
                 'title': u'укр.doc',
                 'url': self.generate_docservice_url(),
@@ -287,7 +287,7 @@ def create_resource_document_json_invalid(self):
     ])
 
     response = self.app.post_json('/{}/documents'.format(self.resource_id),
-        headers={'X-Access-Token': self.resource_token}, params={
+        headers=self.access_header, params={
             'data': {
                 'title': u'укр.doc',
                 'url': self.generate_docservice_url(),
@@ -301,7 +301,7 @@ def create_resource_document_json_invalid(self):
     ])
 
     response = self.app.post_json('/{}/documents'.format(self.resource_id),
-        headers={'X-Access-Token': self.resource_token}, params={
+        headers=self.access_header, params={
             'data': {
                 'title': u'укр.doc',
                 'url': self.generate_docservice_url(),
@@ -315,7 +315,7 @@ def create_resource_document_json_invalid(self):
     ])
 
     response = self.app.post_json('/{}/documents'.format(self.resource_id),
-        headers={'X-Access-Token': self.resource_token}, params={
+        headers=self.access_header, params={
             'data': {
                 'title': u'укр.doc',
                 'url': self.generate_docservice_url(),
@@ -329,7 +329,7 @@ def create_resource_document_json_invalid(self):
     ])
 
     response = self.app.post_json('/{}/documents'.format(self.resource_id),
-        headers={'X-Access-Token': self.resource_token}, params={
+        headers=self.access_header, params={
             'data': {
                 'title': u'укр.doc',
                 'url': 'http://invalid.docservice.url/get/uuid',
@@ -341,7 +341,7 @@ def create_resource_document_json_invalid(self):
     self.assertEqual(response.json['errors'][0]["description"], "Can add document only from document service.")
 
     response = self.app.post_json('/{}/documents'.format(self.resource_id),
-        headers={'X-Access-Token': self.resource_token}, params={
+        headers=self.access_header, params={
             'data': {
                 'title': u'укр.doc',
                 'url': '/'.join(self.generate_docservice_url().split('/')[:4]),
@@ -353,7 +353,7 @@ def create_resource_document_json_invalid(self):
     self.assertEqual(response.json['errors'][0]["description"], "Can add document only from document service.")
 
     response = self.app.post_json('/{}/documents'.format(self.resource_id),
-        headers={'X-Access-Token': self.resource_token}, params={
+        headers=self.access_header, params={
             'data': {
                 'title': u'укр.doc',
                 'url': self.generate_docservice_url().split('?')[0],
@@ -365,7 +365,7 @@ def create_resource_document_json_invalid(self):
     self.assertEqual(response.json['errors'][0]["description"], "Can add document only from document service.")
 
     response = self.app.post_json('/{}/documents'.format(self.resource_id),
-        headers={'X-Access-Token': self.resource_token}, params={
+        headers=self.access_header, params={
             'data': {
                 'title': u'укр.doc',
                 'url': self.generate_docservice_url().replace(self.app.app.registry.keyring.keys()[-1], '0' * 8),
@@ -377,7 +377,7 @@ def create_resource_document_json_invalid(self):
     self.assertEqual(response.json['errors'][0]["description"], "Document url expired.")
 
     response = self.app.post_json('/{}/documents'.format(self.resource_id),
-        headers={'X-Access-Token': self.resource_token}, params={
+        headers=self.access_header, params={
             'data': {
                 'title': u'укр.doc',
                 'url': self.generate_docservice_url().replace("Signature=", "Signature=ABC"),
@@ -389,7 +389,7 @@ def create_resource_document_json_invalid(self):
     self.assertEqual(response.json['errors'][0]["description"], "Document url signature invalid.")
 
     response = self.app.post_json('/{}/documents'.format(self.resource_id),
-        headers={'X-Access-Token': self.resource_token}, params={
+        headers=self.access_header, params={
             'data': {
                 'title': u'укр.doc',
                 'url': self.generate_docservice_url().replace("Signature=", "Signature=bw%3D%3D"),
@@ -403,7 +403,7 @@ def create_resource_document_json_invalid(self):
 
 def create_resource_document_json(self):
     response = self.app.post_json('/{}/documents'.format(self.resource_id),
-        headers={'X-Access-Token': self.resource_token}, params={
+        headers=self.access_header, params={
             'data': {
                 'title': u'укр.doc',
                 'url': self.generate_docservice_url(),
@@ -458,7 +458,7 @@ def create_resource_document_json(self):
     self.set_status(self.forbidden_document_modification_actions_status)
 
     response = self.app.post_json('/{}/documents'.format(self.resource_id),
-        headers={'X-Access-Token': self.resource_token}, params={
+        headers=self.access_header, params={
             'data': {
                 'title': u'укр.doc',
                 'url': self.generate_docservice_url(),
@@ -473,7 +473,7 @@ def create_resource_document_json(self):
 
 def put_resource_document_json(self):
     response = self.app.post_json('/{}/documents'.format(self.resource_id),
-        headers={'X-Access-Token': self.resource_token}, params={
+        headers=self.access_header, params={
             'data': {
                 'title': u'укр.doc',
                 'url': self.generate_docservice_url(),
@@ -489,7 +489,7 @@ def put_resource_document_json(self):
     self.assertIn(doc_id, response.headers['Location'])
 
     response = self.app.put_json('/{}/documents/{}'.format(self.resource_id, doc_id),
-        headers={'X-Access-Token': self.resource_token}, params={
+        headers=self.access_header, params={
             'data': {
                 'title': u'name.doc',
                 'url': self.generate_docservice_url(),
@@ -535,7 +535,7 @@ def put_resource_document_json(self):
     self.assertEqual(dateModified2, response.json["data"][1]['dateModified'])
 
     response = self.app.post_json('/{}/documents'.format(self.resource_id),
-        headers={'X-Access-Token': self.resource_token}, params={
+        headers=self.access_header, params={
             'data': {
                 'title': 'name.doc',
                 'url': self.generate_docservice_url(),
@@ -555,7 +555,7 @@ def put_resource_document_json(self):
     self.assertEqual(dateModified, response.json["data"][1]['dateModified'])
 
     response = self.app.put_json('/{}/documents/{}'.format(self.resource_id, doc_id),
-        headers={'X-Access-Token': self.resource_token}, params={
+        headers=self.access_header, params={
             'data': {
                 'title': u'укр.doc',
                 'url': self.generate_docservice_url(),
@@ -586,7 +586,7 @@ def put_resource_document_json(self):
     self.set_status(self.forbidden_document_modification_actions_status)
 
     response = self.app.put_json('/{}/documents/{}'.format(self.resource_id, doc_id),
-        headers={'X-Access-Token': self.resource_token}, params={
+        headers=self.access_header, params={
             'data': {
                 'title': u'укр.doc',
                 'url': self.generate_docservice_url(),
