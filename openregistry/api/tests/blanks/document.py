@@ -1,14 +1,6 @@
 # -*- coding: utf-8 -*-
 
 
-test_document_data = {
-    # 'url': self.generate_docservice_url(),
-    'title': u'укр.doc',
-    'hash': 'md5:' + '0' * 32,
-    'format': 'application/msword',
-}
-
-
 def not_found(self):
     response = self.app.get('/some_id/documents', status=404)
     self.assertEqual(response.status, '404 Not Found')
