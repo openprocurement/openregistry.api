@@ -29,17 +29,24 @@ def read_json(name):
 
 DEFAULT_CURRENCY = u'UAH'
 
-DEFAULT_ITEM_CLASSIFICATION = u'CPV'
+DEFAULT_ITEM_CLASSIFICATION = u'CAV'
 
-DOCUMENT_TYPES = []
+DOCUMENT_TYPES = [
+    'notice', 'technicalSpecifications', 'contractProforma',
+    'illustration', 'x_dgfPublicAssetCertificate',
+    'x_presentation', 'x_nda', 'x_dgfAssetFamiliarization',
+]
 
 CPV_CODES = read_json('cpv.json')
-ORA_CODES = [i['code'] for i in read_json('OrganisationRegistrationAgency.json')['data']]
+CAV_CODES = read_json('cav.json')
 
 ITEM_CLASSIFICATIONS = {
-    u'CPV': CPV_CODES,
-    u'CAV-PS': []
+    u'CAV': CAV_CODES,
+    #u'CAV': CAV_CODES,
+    #u'CAV-PS': []
 }
+
+ORA_CODES = [i['code'] for i in read_json('OrganisationRegistrationAgency.json')['data']]
 
 IDENTIFIER_CODES = ORA_CODES
 

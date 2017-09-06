@@ -34,13 +34,13 @@ test_asset_data = {
     "assetType": "basic",
     "assetCustodian": deepcopy(test_organization),
     "classification": {
-        "scheme": u"CPV",
-        "id": u"37452200-3",
+        "scheme": u"CAV",
+        "id": u"39513200-3",
         "description": u"Земельні ділянки"
     },
     "unit": {
         "name": u"item",
-        "code": u"44617100-9"
+        "code": u"39513200-3"
     },
     "quantity": 5,
     "address": {

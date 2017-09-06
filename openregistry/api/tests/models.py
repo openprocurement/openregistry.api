@@ -154,7 +154,7 @@ class DummyOCDSModelsTest(unittest.TestCase):
 
     def test_Unit_model(self):
 
-        data = {'name': u'item', 'code': u'44617100-9'}
+        data = {'name': u'item', 'code': u'39513200-3'}
 
         unit = Unit(data)
         unit.validate()
@@ -171,12 +171,12 @@ class DummyOCDSModelsTest(unittest.TestCase):
 
         data['value'] = {'amount': 5}
         unit = Unit(data)
-        self.assertEqual(unit.serialize(), {'code': u'44617100-9', 'name': u'item',
+        self.assertEqual(unit.serialize(), {'code': u'39513200-3', 'name': u'item',
                                             'value': {'currency': u'UAH', 'amount': 5., 'valueAddedTaxIncluded': True}})
 
         unit.value.amount = -1000
         unit.value.valueAddedTaxIncluded = False
-        self.assertEqual(unit.serialize(), {'code': u'44617100-9', 'name': u'item',
+        self.assertEqual(unit.serialize(), {'code': u'39513200-3', 'name': u'item',
                                             'value': {'currency': u'UAH', 'amount': -1000, 'valueAddedTaxIncluded': False}})
         with self.assertRaises(ModelValidationError) as ex:
             unit.validate()
@@ -185,7 +185,7 @@ class DummyOCDSModelsTest(unittest.TestCase):
 
     def test_Classification_model(self):
 
-        data = {'scheme': u'CPV', 'id': u'44617100-9', 'description': u'Cartons'}
+        data = {'scheme': u'CAV', 'id': u'39513200-3', 'description': u'Cartons'}
 
         classification = Classification(data)
         classification.validate()
@@ -207,8 +207,7 @@ class DummyOCDSModelsTest(unittest.TestCase):
         data["scheme"] = scheme
         classification.validate()
 
-    @mock.patch.dict('openregistry.api.constants.ITEM_CLASSIFICATIONS', {'CPV': ['test'],
-                                                                         'CAV-PS': ['test2']})
+    @mock.patch.dict('openregistry.api.constants.ITEM_CLASSIFICATIONS', {'CAV': ['test']})
     def test_ItemClassification_model(self):
         item_classification = ItemClassification.get_mock_object()
 
@@ -216,23 +215,15 @@ class DummyOCDSModelsTest(unittest.TestCase):
         with self.assertRaisesRegexp(ValueError, 'ItemClassification Model has no role "test"'):
             item_classification.serialize('test')
 
-        item_classification.scheme = 'CPV'
+        item_classification.scheme = 'CAV'
         with self.assertRaises(ModelValidationError) as ex:
             item_classification.validate()
         self.assertEqual(ex.exception.message,
                          {"id": ["Value must be one of ['test']."]})
 
-        item_classification.scheme = 'CAV-PS'
-        with self.assertRaises(ModelValidationError) as ex:
-            item_classification.validate()
-        self.assertEqual(ex.exception.message,
-                         {"id": ["Value must be one of ['test2']."]})
-
-        item_classification.import_data({'scheme': 'CPV', 'id': 'test'})
+        item_classification.import_data({'scheme': 'CAV', 'id': 'test'})
         item_classification.validate()
 
-        item_classification.import_data({'scheme': 'CAV-PS', 'id': 'test2'})
-        item_classification.validate()
 
     def test_Location_model(self):
         location = Location()
@@ -257,8 +248,8 @@ class DummyOCDSModelsTest(unittest.TestCase):
             "id": u"0",
             "description": u"футляри до державних нагород",
             "classification": {
-                "scheme": u"CPV",
-                "id": u"44617100-9",
+                "scheme": u"CAV",
+                "id": u"32322000-6",
                 "description": u"Cartons"
             },
             "additionalClassifications": [
@@ -270,7 +261,7 @@ class DummyOCDSModelsTest(unittest.TestCase):
             ],
             "unit": {
                 "name": u"item",
-                "code": u"44617100-9"
+                "code": u"39513200-3"
             },
             "quantity": 5,
             "address": {

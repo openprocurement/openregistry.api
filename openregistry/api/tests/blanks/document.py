@@ -178,7 +178,7 @@ def patch_resource_document(self):
     self.assertEqual(response.content_type, 'application/json')
     self.assertEqual(response.json['status'], 'error')
     self.assertEqual(response.json['errors'], [
-        {u'description': [u"Value must be one of []."], u'location': u'body', u'name': u'documentType'}
+        {u'description': [u"Value must be one of {}.".format(str(self.document_types))], u'location': u'body', u'name': u'documentType'}
     ])
     response = self.app.patch_json('/{}/documents/{}'.format(self.resource_id, doc_id),
         headers=self.access_header, params={
