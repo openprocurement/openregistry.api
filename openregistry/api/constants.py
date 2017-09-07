@@ -31,11 +31,7 @@ DEFAULT_CURRENCY = u'UAH'
 
 DEFAULT_ITEM_CLASSIFICATION = u'CAV'
 
-DOCUMENT_TYPES = [
-    'notice', 'technicalSpecifications', 'contractProforma',
-    'illustration', 'x_dgfPublicAssetCertificate',
-    'x_presentation', 'x_nda', 'x_dgfAssetFamiliarization',
-]
+DOCUMENT_TYPES = ['notice', 'technicalSpecifications', 'illustration', 'virtualDataRoom', 'x_presentation']
 
 CPV_CODES = read_json('cpv.json')
 CAV_CODES = read_json('cav.json')
