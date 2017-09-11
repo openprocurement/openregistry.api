@@ -27,6 +27,9 @@ def read_json(name):
         data = lang_file.read()
     return loads(data)
 
+
+DEBTOR_TYPES = ['naturalPerson', 'legalPerson']
+
 DEFAULT_CURRENCY = u'UAH'
 
 DEFAULT_ITEM_CLASSIFICATION = u'CAV'
