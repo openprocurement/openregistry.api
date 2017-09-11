@@ -22,19 +22,12 @@ from .roles import document_roles, organization_roles
 
 class BasicValue(Model):
     amount = FloatType(required=True, min_value=0)  # Amount as a number.
-    currency = StringType(required=True, default=DEFAULT_CURRENCY, max_length=3, min_length=3)  # The currency in 3-letter ISO 4217 format.
-
-
-class DebtValue(BasicValue):
-    currency = StringType(required=True, max_length=3, min_length=3)  # The currency in 3-letter ISO 4217 format.
-
-
-class DebtCurrencyValue(BasicValue):
     currency = StringType(required=True, max_length=3, min_length=3)  # The currency in 3-letter ISO 4217 format.
 
 
 class Value(BasicValue):
     valueAddedTaxIncluded = BooleanType(required=True, default=True)
+    currency = StringType(required=True, choices=[DEFAULT_CURRENCY], max_length=3, min_length=3)  # The currency in 3-letter ISO 4217 format.
 
 
 class Period(Model):
@@ -196,5 +189,5 @@ class Debt(Model):
     agreementNumber = StringType(required=True)
     debtorType = StringType(required=True, choices=DEBTOR_TYPES)
     dateSigned = IsoDateTimeType()
-    value = ModelType(DebtValue)
-    debtCurrencyValue = ModelType(DebtCurrencyValue)
+    value = ModelType(BasicValue)
+    debtCurrencyValue = ModelType(BasicValue)
