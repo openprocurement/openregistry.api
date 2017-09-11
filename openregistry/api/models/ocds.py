@@ -151,7 +151,6 @@ class Item(Model):
     quantity = IntType()  # The number of units required
     address = ModelType(Address)
     location = ModelType(Location)
-    relatedLot = MD5Type()
 
 
 class ContactPoint(Model):

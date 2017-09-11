@@ -29,7 +29,7 @@ test_document_data = {
     'format': 'application/msword',
 }
 
-test_asset_data = {
+test_asset_basic_data = {
     "title": u"Земля для космодрому",
     "assetType": "basic",
     "assetCustodian": deepcopy(test_organization),
@@ -55,6 +55,10 @@ test_asset_data = {
         "currency": u"UAH"
     },
 }
+
+test_asset_compound_data = deepcopy(test_asset_basic_data)
+test_asset_compound_data['assetType'] = 'compound'
+
 
 test_lot_data = {
     "title": u"Тестовий лот",
