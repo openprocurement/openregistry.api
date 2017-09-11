@@ -27,7 +27,11 @@ class BasicValue(Model):
 
 class Value(BasicValue):
     valueAddedTaxIncluded = BooleanType(required=True, default=True)
-    currency = StringType(required=True, choices=[DEFAULT_CURRENCY], max_length=3, min_length=3)  # The currency in 3-letter ISO 4217 format.
+    currency = StringType(required=True, default=DEFAULT_CURRENCY, max_length=3, min_length=3)  # The currency in 3-letter ISO 4217 format.
+
+
+class ValueUAH(BasicValue):
+    currency = StringType(required=True, choices=[u'UAH'], max_length=3, min_length=3)  # The currency in 3-letter ISO 4217 format.
 
 
 class Period(Model):
@@ -189,5 +193,5 @@ class Debt(Model):
     agreementNumber = StringType(required=True)
     debtorType = StringType(required=True, choices=DEBTOR_TYPES)
     dateSigned = IsoDateTimeType()
-    value = ModelType(BasicValue)
+    value = ModelType(ValueUAH)
     debtCurrencyValue = ModelType(BasicValue)
