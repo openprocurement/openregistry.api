@@ -190,8 +190,8 @@ class Organization(Model):
 
 
 class Debt(Model):
-    agreementNumber = StringType(required=True)
-    debtorType = StringType(required=True, choices=DEBTOR_TYPES)
+    agreementNumber = StringType()
+    debtorType = StringType(choices=DEBTOR_TYPES)
     dateSigned = IsoDateTimeType()
     value = ModelType(ValueUAH)
     debtCurrencyValue = ModelType(BasicValue)
