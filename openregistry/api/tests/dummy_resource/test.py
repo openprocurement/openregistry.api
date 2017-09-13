@@ -6,7 +6,6 @@ from mock import Mock, MagicMock, patch
 
 from urllib import unquote
 from base64 import b64decode
-from paste.deploy.loadwsgi import appconfig
 from schematics.transforms import wholelist
 from schematics.types.compound import ModelType
 
@@ -15,9 +14,6 @@ from openregistry.api.models.schematics_extender import ListType
 
 from openregistry.api.tests.dummy_resource.views import DummyResource
 from openregistry.api.tests.dummy_resource.models import DummyModel
-
-
-settings = appconfig('config:' + os.path.join(os.path.dirname(__file__), '..', 'tests.ini'))
 
 
 class BaseAPIUnitTest(unittest.TestCase):
@@ -121,12 +117,16 @@ class TestAPIResourceListing(BaseAPIUnitTest):
         view = DummyResource(self.request, self.context)
 
         class OffsetExpired(Exception):
-            """ Test exception for error_handler mocking"""
+            """ Test exception for error_handler mocking """
 
         with patch('openregistry.api.utils.error_handler',
                    return_value=OffsetExpired):
             with self.assertRaises(OffsetExpired):
                 view.get()
+
+            self.assertEqual(self.request.errors.status, 404)
+            self.request.errors.add.assert_called_once_with(
+                'querystring', 'offset', 'Offset expired/invalid')
 
 
 class TestAPIValidation(BaseAPIUnitTest):
