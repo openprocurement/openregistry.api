@@ -233,10 +233,15 @@ class TestAPIValidation(BaseAPIUnitTest):
     def test_04_check_document(self):
         from openregistry.api.utils import check_document
 
-        self.request.registry.docservice_url = 'http://localhost/get'
+        docservice_url = 'http://localhost/get'
+        key = 'ee9cabd7e0384c9c8006563d4876b462'
+        keyID = 'c7925f5a'
+        signature = 'testing'
+
+        self.request.registry.docservice_url = docservice_url
         document = Document({
             'title': u'укр.doc',
-            'url': 'http://localhost/get',
+            'url': docservice_url,
             'format': 'application/msword'
         })
 
@@ -251,7 +256,7 @@ class TestAPIValidation(BaseAPIUnitTest):
             self.request.errors.add.assert_called_once_with(
                 'body', 'url', 'Can add document only from document service.')
 
-            document.url = 'http://localhost/get/ee9cabd7e0384c9c8006563d4876b462?KeyID=c7925f5a&Signature=testing'
+            document.url = '{}/{}?KeyID={}&Signature={}'.format(docservice_url, key, keyID, signature)
             with self.assertRaises(InvalidDocument):
                 check_document(self.request, document, 'body')
             self.assertEqual(self.request.errors.status, 422)
@@ -273,8 +278,9 @@ class TestAPIValidation(BaseAPIUnitTest):
             self.request.errors.add.assert_called_with(
                 'body', 'url', 'Document url signature invalid.')
 
-            document.url = 'http://localhost/get/ee9cabd7e0384c9c8006563d4876b462?KeyID=c7925f5a&Signature=NsjG53XRPUq%2F4rHU79t3JLW6FTLPH8KjLIqKxjIaH6oBMbKIQSwtzAL1T%2F%2BbpA7lLErHpOxq3a1KJx9HI9azDg%3D%3D'
-            signature = b64decode(unquote('NsjG53XRPUq%2F4rHU79t3JLW6FTLPH8KjLIqKxjIaH6oBMbKIQSwtzAL1T%2F%2BbpA7lLErHpOxq3a1KJx9HI9azDg%3D%3D'))
+            signature = 'NsjG53XRPUq%2F4rHU79t3JLW6FTLPH8KjLIqKxjIaH6oBMbKIQSwtzAL1T%2F%2BbpA7lLErHpOxq3a1KJx9HI9azDg%3D%3D'
+            document.url = '{}/{}?KeyID={}&Signature={}'.format(docservice_url, key, keyID, signature)
+            signature = b64decode(unquote(signature))
             with self.assertRaises(InvalidDocument):
                 check_document(self.request, document, 'body')
             self.assertEqual(self.request.errors.status, 422)
