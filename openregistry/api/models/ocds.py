@@ -9,7 +9,7 @@ from schematics.types.serializable import serializable
 
 from openregistry.api.constants import (DEFAULT_CURRENCY,
     DEFAULT_ITEM_CLASSIFICATION, ITEM_CLASSIFICATIONS, DOCUMENT_TYPES,
-    IDENTIFIER_CODES
+    IDENTIFIER_CODES, DEBTOR_TYPES
 )
 from openregistry.api.utils import get_now, serialize_document_url
 
@@ -20,10 +20,18 @@ from .roles import document_roles, organization_roles
 # OCDS Building Blocks.
 # More info: http://standard.open-contracting.org/latest/en/getting_started/building_blocks
 
-class Value(Model):
+class BasicValue(Model):
     amount = FloatType(required=True, min_value=0)  # Amount as a number.
-    currency = StringType(required=True, default=DEFAULT_CURRENCY, max_length=3, min_length=3)  # The currency in 3-letter ISO 4217 format.
+    currency = StringType(required=True, max_length=3, min_length=3)  # The currency in 3-letter ISO 4217 format.
+
+
+class Value(BasicValue):
     valueAddedTaxIncluded = BooleanType(required=True, default=True)
+    currency = StringType(required=True, default=DEFAULT_CURRENCY, max_length=3, min_length=3)  # The currency in 3-letter ISO 4217 format.
+
+
+class ValueUAH(BasicValue):
+    currency = StringType(required=True, choices=[u'UAH'], max_length=3, min_length=3)  # The currency in 3-letter ISO 4217 format.
 
 
 class Period(Model):
@@ -179,3 +187,11 @@ class Organization(Model):
     additionalIdentifiers = ListType(ModelType(Identifier))
     address = ModelType(Address, required=True)
     contactPoint = ModelType(ContactPoint, required=True)
+
+
+class Debt(Model):
+    agreementNumber = StringType()
+    debtorType = StringType(choices=DEBTOR_TYPES)
+    dateSigned = IsoDateTimeType()
+    value = ModelType(ValueUAH)
+    debtCurrencyValue = ModelType(BasicValue)
