@@ -103,6 +103,9 @@ test_asset_compound_data['assetType'] = 'compound'
 
 test_asset_compound_data['items'] = [test_item_data, test_item_data]
 
+test_asset_claimrights_data = deepcopy(test_asset_compound_data)
+test_asset_claimrights_data['assetType'] = 'claimRights'
+test_asset_claimrights_data['debt'] = test_debt_data
 
 
 test_lot_data = {
