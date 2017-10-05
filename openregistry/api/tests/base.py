@@ -16,6 +16,7 @@ from openregistry.api.design import sync_design
 from openregistry.api.constants import VERSION, SESSION
 
 
+
 now = datetime.now()
 
 
@@ -31,6 +32,29 @@ def snitch(func):
     """
     return FunctionType(func.func_code, func.func_globals,
                         'test_' + func.func_name, closure=func.func_closure)
+
+
+def create_blacklist(status_changes, statuses, roles):
+    """
+        This function is used to create blacklist for every status and
+        auth role of different objects(lot, asset, e.t.c.).
+        Since name of some role, depends on type of an object(lot - lot_owner, e.t.c.),
+        we need `roles` argument.
+        This function get `status_changes` and go through it keys(i.e. statuses).
+        For every iteration we take one of roles and create white list for this auth role and status.
+        Then from white list and `statuses` argument(actually all statuses of a certain object)
+        we get black list.
+    """
+    status_blacklist = {}
+    for status in statuses:
+        status_blacklist[status] = {}
+        for auth_role in roles:
+            status_whitelist = {w for w in status_changes[status]['next_status']
+                                if auth_role in status_changes[status]['next_status'][w]}
+            if auth_role in status_changes[status]['editing_permissions']:
+                status_whitelist.add(status)
+            status_blacklist[status].update({auth_role: list(set(statuses) - status_whitelist)})
+    return  status_blacklist
 
 
 class PrefixedRequestClass(webtest.app.TestRequest):
