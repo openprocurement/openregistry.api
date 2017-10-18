@@ -3,6 +3,7 @@ import unittest
 import mock
 from datetime import datetime, timedelta
 from schematics.exceptions import ConversionError, ValidationError, ModelValidationError
+from decimal import Decimal
 
 from openregistry.api.utils import get_now
 
@@ -12,7 +13,7 @@ from openregistry.api.models.schematics_extender import (
 from openregistry.api.models.ocds import (
     Organization, ContactPoint, Identifier, Address,
     Item, Location, Unit, Value, ItemClassification, Classification,
-    Period, PeriodEndRequired, Document
+    Period, PeriodEndRequired, Document, DecimalType
 )
 
 
@@ -44,6 +45,28 @@ class SchematicsExtenderTest(unittest.TestCase):
             self.assertEqual(date, dt.to_native(date))
             with self.assertRaises(ConversionError):
                 dt.to_native(dt.to_primitive(date))
+
+    def test_DecimalType_model(self):
+        number = '5.001'
+
+        dt = DecimalType()
+
+        value = dt.to_primitive(number)
+        self.assertEqual(Decimal(number), dt.to_native(number))
+        self.assertEqual(Decimal(number), dt.to_native(value))
+
+        for number in (None, '5,5'):
+            with self.assertRaisesRegexp(ConversionError, u"Number '{}' failed to convert to a decimal.".format(number)):
+                dt.to_native(number)
+
+        dt = DecimalType(precision=-3, min_value=Decimal('0'), max_value=Decimal('10.0'))
+
+        self.assertEqual(Decimal('0.111'), dt.to_native('0.11111'))
+        self.assertEqual(Decimal('0.556'), dt.to_native('0.55555'))
+
+        for number in ('-1.0', '11.0'):
+            with self.assertRaises(ConversionError):
+                dt.to_native(dt.to_primitive(number))
 
     def test_HashType_model(self):
         from uuid import uuid4
@@ -263,7 +286,7 @@ class DummyOCDSModelsTest(unittest.TestCase):
                 "name": u"item",
                 "code": u"39513200-3"
             },
-            "quantity": 5,
+            "quantity": Decimal('5.001'),
             "address": {
                 "countryName": u"Україна",
                 "postalCode": "79000",
