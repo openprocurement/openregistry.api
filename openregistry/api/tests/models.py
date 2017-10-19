@@ -56,7 +56,7 @@ class SchematicsExtenderTest(unittest.TestCase):
         self.assertEqual(Decimal(number), dt.to_native(value))
 
         for number in (None, '5,5'):
-            with self.assertRaisesRegexp(ConversionError, u"Number '{}' failed to convert to a decimal.".format(number)):
+            with self.assertRaisesRegexp(ConversionError, dt.messages['number_coerce'].format(number)):
                 dt.to_native(number)
 
         dt = DecimalType(precision=-3, min_value=Decimal('0'), max_value=Decimal('10.0'))
@@ -64,9 +64,12 @@ class SchematicsExtenderTest(unittest.TestCase):
         self.assertEqual(Decimal('0.111'), dt.to_native('0.11111'))
         self.assertEqual(Decimal('0.556'), dt.to_native('0.55555'))
 
-        for number in ('-1.0', '11.0'):
-            with self.assertRaises(ConversionError):
-                dt.to_native(dt.to_primitive(number))
+        number = '-1.1'
+        with self.assertRaisesRegexp(ConversionError, dt.messages['number_min'].format(number)):
+            dt.to_native(dt.to_primitive(number))
+        number = '11.1'
+        with self.assertRaisesRegexp(ConversionError, dt.messages['number_max'].format(number)):
+            dt.to_native(dt.to_primitive(number))
 
     def test_HashType_model(self):
         from uuid import uuid4
