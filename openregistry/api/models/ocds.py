@@ -2,10 +2,13 @@
 from uuid import uuid4
 
 from schematics.types import (StringType, FloatType, URLType, IntType,
-                              BooleanType, BaseType, EmailType, MD5Type)
-from schematics.exceptions import ValidationError
+                              BooleanType, BaseType, EmailType, MD5Type,
+                              DecimalType as BaseDecimalType)
+from schematics.exceptions import ValidationError, ConversionError
 from schematics.types.compound import ModelType, ListType
 from schematics.types.serializable import serializable
+
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
 from openregistry.api.constants import (DEFAULT_CURRENCY,
     DEFAULT_ITEM_CLASSIFICATION, ITEM_CLASSIFICATIONS, DOCUMENT_TYPES,
@@ -147,6 +150,29 @@ class Identifier(Model):
     uri = URLType()  # A URI to identify the organization.
 
 
+class DecimalType(BaseDecimalType):
+
+    def __init__(self, precision=-3, **kwargs):
+        self.precision = Decimal("1E{:d}".format(precision))
+        super(DecimalType, self).__init__(**kwargs)
+
+    def to_primitive(self, value, context=None):
+        return value
+
+    def to_native(self, value, context=None):
+        try:
+            value = Decimal(value).quantize(self.precision, rounding=ROUND_HALF_UP).normalize()
+        except (TypeError, InvalidOperation):
+            raise ConversionError(self.messages['number_coerce'].format(value))
+
+        if self.min_value is not None and value < self.min_value:
+            raise ConversionError(self.messages['number_min'].format(value))
+        if self.max_value is not None and self.max_value < value:
+            raise ConversionError(self.messages['number_max'].format(value))
+
+        return value
+
+
 class Item(Model):
     """A good, service, or work to be contracted."""
     id = StringType(required=True, min_length=1, default=lambda: uuid4().hex)
@@ -156,7 +182,7 @@ class Item(Model):
     classification = ModelType(ItemClassification)
     additionalClassifications = ListType(ModelType(Classification), default=list())
     unit = ModelType(Unit)  # Description of the unit which the good comes in e.g. hours, kilograms
-    quantity = IntType()  # The number of units required
+    quantity = DecimalType()  # The number of units required
     address = ModelType(Address)
     location = ModelType(Location)
 
