@@ -5,6 +5,7 @@ if 'test' not in __import__('sys').argv[0]: # pragma: no cover
     import gevent.monkey
     gevent.monkey.patch_all()
 import os
+import simplejson
 from logging import getLogger
 from libnacl.sign import Signer, Verifier
 from pyramid.authorization import ACLAuthorizationPolicy as AuthorizationPolicy
@@ -14,7 +15,7 @@ from pyramid.settings import asbool
 
 from openregistry.api.auth import AuthenticationPolicy, authenticated_role, check_accreditation
 from openregistry.api.database import set_api_security
-from openregistry.api.utils import forbidden, request_params, load_plugins
+from openregistry.api.utils import forbidden, request_params, load_plugins, json_body, couchdb_json_decode
 from openregistry.api.constants import ROUTE_PREFIX
 
 LOGGER = getLogger("{}.init".format(__name__))
@@ -34,9 +35,11 @@ def main(global_config, **settings):
     config.add_request_method(request_params, 'params', reify=True)
     config.add_request_method(authenticated_role, reify=True)
     config.add_request_method(check_accreditation)
-    config.add_renderer('prettyjson', JSON(indent=4))
-    config.add_renderer('jsonp', JSONP(param_name='opt_jsonp'))
-    config.add_renderer('prettyjsonp', JSONP(indent=4, param_name='opt_jsonp'))
+    config.add_request_method(json_body, 'json_body', reify=True)
+    config.add_renderer('json', JSON(serializer=simplejson.dumps))
+    config.add_renderer('prettyjson', JSON(indent=4, serializer=simplejson.dumps))
+    config.add_renderer('jsonp', JSONP(param_name='opt_jsonp', serializer=simplejson.dumps))
+    config.add_renderer('prettyjsonp', JSONP(indent=4, param_name='opt_jsonp', serializer=simplejson.dumps))
 
     # search for plugins
     plugins = settings.get('plugins') and settings['plugins'].split(',')
@@ -48,6 +51,7 @@ def main(global_config, **settings):
     if aserver:
         config.registry.admin_couchdb_server = aserver
     config.registry.db = db
+    couchdb_json_decode()
 
     # Document Service key
     config.registry.docservice_url = settings.get('docservice_url')
