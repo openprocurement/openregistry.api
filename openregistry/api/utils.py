@@ -22,6 +22,11 @@ from jsonpointer import resolve_pointer
 from schematics.types import StringType
 from jsonpatch import make_patch, apply_patch as _apply_patch
 
+import simplejson
+import couchdb
+from pyramid.compat import text_
+from decimal import Decimal
+
 from openregistry.api.events import ErrorDesctiptorEvent
 from openregistry.api.constants import LOGGER, TZ, ROUTE_PREFIX
 from openregistry.api.interfaces import IContentConfigurator
@@ -491,3 +496,18 @@ def serialize_document_url(document):
         path = [i for i in urlparse(url).path.split('/') if len(i) == 32 and not set(i).difference(hexdigits)]
         return generate_docservice_url(request, doc_id, False, '{}/{}'.format(path[0], path[-1]))
     return generate_docservice_url(request, doc_id, False)
+
+
+def json_body(self):
+    return simplejson.loads(text_(self.body, self.charset), parse_float = Decimal)
+
+
+def couchdb_json_decode():
+    my_encode = lambda obj, dumps=simplejson.dumps: dumps(obj, allow_nan=False, ensure_ascii=False)
+
+    def my_decode(string_):
+        if isinstance(string_, couchdb.util.btype):
+            string_ = string_.decode('utf-8')
+        return simplejson.loads(string_, parse_float=Decimal)
+
+    couchdb.json.use(decode=my_decode, encode=my_encode)
