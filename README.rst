@@ -11,3 +11,13 @@
 
 Documentation
 =============
+
+Swagger docs
+------------
+To get swagger docs, you may just make `GET` request on::
+
+    /api/<version>/swagger
+
+You also must check if the plugins connected directly, i.e you must check if any
+views use the same URL and disable conflicting ones.
+
