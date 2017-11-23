@@ -22,6 +22,7 @@ requires = [
     'pyramid_exclog',
     'requests',
     'tzlocal',
+    'cornice_swagger',
 ]
 test_requires = requires + [
     'webtest',
