@@ -9,11 +9,20 @@
     :target: https://github.com/openprocurement/openregistry.api/blob/master/LICENSE.txt
 
 
-Documentation
+ Documentation
 =============
 
 Swagger docs
 ------------
+There is `fork <https://github.com/bdmbdsm/cornice.ext.swagger>`_ of `cornice_swagger`,
+adapted to work with **OpenProcurement** and **OpenRegistry**.
+If you'll install it, docstrings of views will be included into swagger-docs on
+output.
+
+Example of fork's installation into buildout of `OpenProcurement <https://github.com/openprocurement/openprocurement.buildout/tree/production>`_
+
+`installation commit <https://github.com/bdmbdsm/openprocurement.buildout/commit/6dd5d4049b55728c33b3023a7d70cf7e547dff85>`_
+
 To get swagger docs, you may just make `GET` request on::
 
     /api/<version>/swagger
