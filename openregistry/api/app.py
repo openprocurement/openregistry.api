@@ -31,6 +31,7 @@ def main(global_config, **settings):
     )
     config.include('pyramid_exclog')
     config.include("cornice")
+    config.include("cornice_swagger")
     config.add_forbidden_view(forbidden)
     config.add_request_method(request_params, 'params', reify=True)
     config.add_request_method(authenticated_role, reify=True)
