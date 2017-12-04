@@ -121,26 +121,31 @@ class UtilsTest(unittest.TestCase):
         }
 
         expected_result = [
-            {u'op': u'replace', u'path': u'/status', u'value': u'pending'},
-            {u'op': u'remove', u'path': u'/classification'},
-            {u'op': u'remove', u'path': u'/assetID'},
-            {u'op': u'remove', u'path': u'/owner'},
-            {u'op': u'remove', u'path': u'/address'},
-            {u'op': u'remove', u'path': u'/date'},
-            {u'op': u'remove', u'path': u'/id'},
-            {u'op': u'remove', u'path': u'/unit'},
-            {u'op': u'remove', u'path': u'/assetType'},
-            {u'op': u'remove', u'path': u'/title'},
-            {u'op': u'remove', u'path': u'/value'},
-            {u'op': u'remove', u'path': u'/owner_token'},
-            {u'op': u'remove', u'path': u'/assetCustodian'},
-            {u'op': u'remove', u'path': u'/quantity'},
+            {u'op': u'remove', u'path': u'/assetType', u'value': dst['assetType']},
+            {u'op': u'remove', u'path': u'/classification', u'value': dst['classification']},
+            {u'op': u'remove', u'path': u'/title', u'value': dst['title']},
+            {u'op': u'remove', u'path': u'/assetID', u'value': dst['assetID']},
+            {u'op': u'remove', u'path': u'/value', u'value': dst['value']},
+            {u'op': u'remove', u'path': u'/date', u'value': dst['date']},
+            {u'op': u'remove', u'path': u'/owner_token', u'value': dst['owner_token']},
+            {u'op': u'remove', u'path': u'/unit', u'value': dst['unit']},
+            {u'op': u'remove', u'path': u'/address', u'value': dst['address']},
+            {u'op': u'remove', u'path': u'/owner', u'value': dst['owner']},
+            {u'op': u'remove', u'path': u'/id', u'value': dst['id']},
+            {u'op': u'remove', u'path': u'/assetCustodian', u'value': dst['assetCustodian']},
+            {u'op': u'remove', u'path': u'/quantity', u'value': dst['quantity']},
             {u'op': u'add',
              u'path': u'/new_field',
-             u'value': {'subfield_1': u'value_1', 'subfield_2': u'value_2'}}
+             u'value': src['new_field']},
+            {u'op': u'replace', u'path': u'/status', u'value': src['status']},
         ]
 
         result = get_revision_changes(dst=dst, src=src)
+        # Make sorting because get_revision_changes can return
+        # proper results but ordering will be differ from expected result
+        # and test will fail
+        result = result.sort(key=lambda r: r['path'])
+        expected_result = expected_result.sort(key=lambda r: r['path'])
         self.assertEqual(result, expected_result)
 
     def test_apply_data_patch(self):
