@@ -30,6 +30,7 @@ test_document_data = {
 }
 
 test_item_data = {
+    "id": u"0",
     "description": u"футляри до державних нагород",
     "classification": {
         "scheme": u"CAV",
@@ -56,6 +57,19 @@ test_item_data = {
         "streetAddress": u"вул. Банкова 1"
     }
 }
+schema_properties = {
+        u"code": "04000000-8",
+        u"version": "latest",
+        u"properties": {
+          u"totalArea": 200,
+          u"year": 1998,
+          u"floor": 3
+        }
+    }
+
+test_item_data_with_schema = deepcopy(test_item_data)
+test_item_data_with_schema['classification']['id'] = schema_properties['code']
+test_item_data_with_schema['schema_properties'] = schema_properties
 
 test_asset_basic_data = {
     "title": u"Земля для космодрому",
@@ -81,7 +95,38 @@ test_asset_basic_data = {
     "value": {
         "amount": 100,
         "currency": u"UAH"
+    }
+}
+
+test_asset_basic_data_with_schema = deepcopy(test_asset_basic_data)
+test_asset_basic_data_with_schema['classification']['id'] = schema_properties['code']
+test_asset_basic_data_with_schema['schema_properties'] = schema_properties
+
+test_asset_basic_data_with_schema = {
+    "title": u"Земля для космодрому",
+    "assetType": "basic",
+    "assetCustodian": deepcopy(test_organization),
+    "classification": {
+        "scheme": u"CAV",
+        "id": u"04000000-8",
+        "description": u"Земельні ділянки"
     },
+    "unit": {
+        "name": u"item",
+        "code": u"39513200-3"
+    },
+    "quantity": 5,
+    "address": {
+        "countryName": u"Україна",
+        "postalCode": "79000",
+        "region": u"м. Київ",
+        "locality": u"м. Київ",
+        "streetAddress": u"вул. Банкова 1"
+    },
+    "value": {
+        "amount": 1001,
+        "currency": u"UAH"
+    }
 }
 
 test_debt_data = {
@@ -101,7 +146,7 @@ test_debt_data = {
 test_asset_compound_data = deepcopy(test_asset_basic_data)
 test_asset_compound_data['assetType'] = 'compound'
 
-test_asset_compound_data['items'] = [test_item_data, test_item_data]
+test_asset_compound_data['items'] = [test_item_data_with_schema, test_item_data_with_schema]
 
 test_asset_claimrights_data = deepcopy(test_asset_compound_data)
 test_asset_claimrights_data['assetType'] = 'claimRights'
