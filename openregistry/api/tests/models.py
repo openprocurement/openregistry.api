@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import unittest
 import mock
+from copy import deepcopy
 from datetime import datetime, timedelta
 from schematics.exceptions import ConversionError, ValidationError, ModelValidationError
 from decimal import Decimal
@@ -15,6 +16,7 @@ from openregistry.api.models.ocds import (
     Item, Location, Unit, Value, ItemClassification, Classification,
     Period, PeriodEndRequired, Document, DecimalType
 )
+from openregistry.api.tests.blanks.json_data import test_item_data_with_schema
 
 
 now = get_now()
@@ -270,45 +272,24 @@ class DummyOCDSModelsTest(unittest.TestCase):
 
     def test_Item_model(self):
 
-        data = {
-            "id": u"0",
-            "description": u"футляри до державних нагород",
-            "classification": {
-                "scheme": u"CAV",
-                "id": u"32322000-6",
-                "description": u"Cartons"
-            },
-            "additionalClassifications": [
-                {
-                    "scheme": u"ДКПП",
-                    "id": u"17.21.1",
-                    "description": u"папір і картон гофровані, паперова й картонна тара"
-                }
-            ],
-            "unit": {
-                "name": u"item",
-                "code": u"39513200-3"
-            },
-            "quantity": Decimal('5.001'),
-            "address": {
-                "countryName": u"Україна",
-                "postalCode": "79000",
-                "region": u"м. Київ",
-                "locality": u"м. Київ",
-                "streetAddress": u"вул. Банкова 1"
-            }
-        }
-        item = Item(data)
+        item = Item(test_item_data_with_schema)
         item.validate()
+        self.assertEqual(item.serialize()['schema_properties']['properties'], test_item_data_with_schema['schema_properties']['properties'])
+        self.assertEqual(item.serialize()['schema_properties']['code'][0:2], test_item_data_with_schema['schema_properties']['code'][:2])
+        self.assertEqual(item.serialize()['description'], test_item_data_with_schema['description'])
+        self.assertEqual(item.serialize()['classification'], test_item_data_with_schema['classification'])
+        self.assertEqual(item.serialize()['additionalClassifications'], test_item_data_with_schema['additionalClassifications'])
+        self.assertEqual(item.serialize()['address'], test_item_data_with_schema['address'])
+        self.assertEqual(item.serialize()['id'], test_item_data_with_schema['id'])
+        self.assertEqual(item.serialize()['unit'], test_item_data_with_schema['unit'])
+        self.assertEqual(item.serialize()['quantity'], test_item_data_with_schema['quantity'])
 
-        self.assertEqual(item.serialize(), data)
         with self.assertRaisesRegexp(ValueError, 'Item Model has no role "test"'):
             item.serialize('test')
 
-        data['location'] = {'latitude': '123', 'longitude': '567'}
-        item2 = Item(data)
+        test_item_data_with_schema['location'] = {'latitude': '123', 'longitude': '567'}
+        item2 = Item(test_item_data_with_schema)
         item2.validate()
-        self.assertEqual(item2.serialize(), data)
 
         self.assertNotEqual(item, item2)
         item2.location = None
