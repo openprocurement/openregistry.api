@@ -156,6 +156,7 @@ test_asset_claimrights_data['debt'] = test_debt_data
 test_lot_data = {
     "title": u"Тестовий лот",
     "description": u"Щось там тестове",
+    "lotIdentifier": u"Q81318b19827",
     "lotType": "basic",
     "lotCustodian": deepcopy(test_organization),
     "assets": []
