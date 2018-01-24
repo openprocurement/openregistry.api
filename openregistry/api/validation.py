@@ -77,7 +77,7 @@ def validate_change_status(request, error_handler, **kwargs):
     # Get resource_type
     resource_type = request.validated['resource_type']
     # Get status from PATCH validated data
-    new_status = request.validated['data'].get("status")
+    new_status = request.json['data'].get("status")
     # Get model from context
     model = request.context
 
