@@ -20,7 +20,7 @@ from openregistry.api.utils import (
     generate_docservice_url,
     generate_id,
     get_content_configurator,
-    get_now,
+    get_file, get_now,
     get_revision_changes,
     load_plugins,
     prepare_patch,
@@ -349,6 +349,54 @@ class UtilsTest(unittest.TestCase):
 
         prepare_patch(changes, orig, patch)
         self.assertEqual(changes, [{'path': '/status', 'value': 'pending', 'op': 'add'}])
+
+    def test_get_file(self):
+        db_doc_id = '1' * 32
+        key = 'ee9cabd7e0384c9c8006563d4876b462'
+        document_id = '6fa5d3a2bdb049f4a13e8b5d8af7bbfd'
+
+        request = mock.Mock(**{
+            'errors': mock.Mock(),
+            'params': {'download': key},
+            'validated': {
+                'documents': [],
+                'document': {},
+                'db_doc': mock.Mock(id=db_doc_id)
+            }
+        })
+
+        self.assertEqual(get_file(request), None)
+        self.assertEqual(request.errors.status, 404)
+        request.errors.add.assert_called_once_with('url', 'download', 'Not Found')
+
+        document = mock.Mock(
+            id=document_id,
+            url='http://localhost/get/{}?KeyID=&Signature='.format(key),
+            title='Test_Document.doc',
+            format='application/msword',
+            hash=None
+        )
+        request.validated['documents'].append(document)
+
+        self.assertEqual(get_file(request), document.url)
+        self.assertEqual(request.response.status, '302 Moved Temporarily')
+        self.assertEqual(request.response.content_type, 'application/msword')
+        self.assertEqual(request.response.location, document.url)
+
+        document.url = 'http://localhost/api/dummy_test_resource/{}/documents/{}?download={}'.format(db_doc_id, document_id, key)
+        with mock.patch('openregistry.api.utils.generate_docservice_url',
+                        return_value='test') as mock_ds_url:
+            self.assertEqual(get_file(request), 'test')
+            mock_ds_url.assert_called_once_with(
+                request, key, prefix='{}/{}'.format(db_doc_id, document_id))
+
+            document.hash = 'md5:' + '0' * 32
+            self.assertEqual(get_file(request), 'test')
+            mock_ds_url.assert_called_with(request, key)
+
+        self.assertEqual(request.response.status, '302 Moved Temporarily')
+        self.assertEqual(request.response.content_type, 'application/msword')
+        self.assertEqual(request.response.location, 'test')
 
 
 def suite():
